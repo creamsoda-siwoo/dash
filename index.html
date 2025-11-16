@@ -34,18 +34,30 @@
         0% { background-position: 0 0; }
         100% { background-position: -2000px 0; }
       }
-      .scrolling-background {
+       .scrolling-background {
           width: 100%;
           height: 100%;
           position: absolute;
           top: 0; left: 0;
           background: 
-            radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%),
+            radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+          z-index: -1;
+          transition: filter 1s ease-in-out;
+      }
+      .scrolling-background::before, .scrolling-background::after {
+          content: '';
+          position: absolute;
+          top: 0; left: 0;
+          width: 100%; height: 100%;
+          background-image: 
             url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><line x1="100" y1="0" x2="100" y2="200" stroke="rgba(0, 255, 255, 0.1)" stroke-width="1"/><line x1="0" y1="100" x2="200" y2="100" stroke="rgba(0, 255, 255, 0.1)" stroke-width="1"/></svg>'),
             url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"><rect width="1" height="1" fill="rgba(255,255,255,0.2)"/></svg>');
           animation: scroll-bg 40s linear infinite;
-          z-index: -1;
       }
+       .scrolling-background::after {
+         animation-duration: 25s;
+         opacity: 0.5;
+       }
       @keyframes fade-in {
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
@@ -64,6 +76,14 @@
       .player-falling { transform: rotate(10deg); }
       @keyframes giant-stomp { 0%, 100% { transform: translateY(0) scale(1.5); } 50% { transform: translateY(-10px) scale(1.5); } }
       .player-giant { animation: giant-stomp 0.5s ease-in-out infinite; }
+      
+      /* Boss Animations */
+      @keyframes boss-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+      @keyframes boss-enter { from { transform: translateX(200%); } to { transform: translateX(0); } }
+      
+      /* Gacha Animations */
+      @keyframes box-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+      @keyframes reveal-glow { from { opacity: 0; box-shadow: 0 0 0px 0px #fff; } to { opacity: 1; box-shadow: 0 0 100px 50px #fff; } }
 
       /* Visual Effects */
       @keyframes hit-flash-anim { 0% { opacity: 0.5; } 100% { opacity: 0; } }
@@ -125,14 +145,15 @@
       }
       .health-bar { background: linear-gradient(90deg, #ff4d4d, #a3ff4d); }
       .fever-bar { background: linear-gradient(90deg, #ff9800, #ffeb3b); box-shadow: 0 0 10px #ffeb3b; }
+      .boss-health-bar { background: linear-gradient(90deg, #f0f, #9400D3); }
 
       .control-button {
         position: absolute;
         bottom: 5vh;
-        width: 18vh;
-        height: 18vh;
-        max-width: 120px;
-        max-height: 120px;
+        width: 16vh;
+        height: 16vh;
+        max-width: 100px;
+        max-height: 100px;
         background-color: rgba(0, 0, 0, 0.3);
         border: 2px solid rgba(255, 255, 255, 0.5);
         border-radius: 50%;
@@ -148,6 +169,31 @@
         border-color: var(--glow-color);
         transform: scale(1.1);
       }
+       .skill-button {
+         position: absolute;
+         bottom: 24vh;
+         right: 4vw;
+         width: 14vh;
+         height: 14vh;
+         max-width: 90px;
+         max-height: 90px;
+         background-color: rgba(138, 43, 226, 0.3);
+         border: 2px solid #9370DB;
+         box-shadow: 0 0 10px #9370DB;
+       }
+       .skill-button .cooldown-overlay {
+         position: absolute;
+         inset: 0;
+         background: rgba(0,0,0,0.7);
+         border-radius: 50%;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         font-size: 2em;
+         font-weight: bold;
+         color: white;
+       }
+      
       .nav-button {
         background: none;
         border: none;
@@ -204,10 +250,11 @@
         const FEVER_GAUGE_MAX = 100; const FEVER_GAUGE_PER_JELLY = 5; const FEVER_DURATION = 8; const FEVER_OBSTACLE_SCORE = 100;
         const LAST_DASH_DURATION = 3;
         const GIANT_POTION_DURATION = 8; const BLAST_JELLY_DURATION = 1.5; const BLAST_JELLY_SPEED_MULTIPLIER = 2.5; const MAGNET_ITEM_DURATION = 10; const MAGNET_RADIUS = 250;
+        const BOSS_APPEARANCE_DISTANCE = 4000; const BOSS_MAX_HEALTH = 2500;
 
         const SvgIconWrapper = ({ children, color, filterId, className }) => (
             React.createElement('svg', { viewBox: "0 0 100 100", xmlns: "http://www.w3.org/2000/svg", className: className || "w-full h-full", style: { filter: `url(#${filterId})` } },
-                React.createElement('defs', null, React.createElement('filter', { id: filterId },
+                React.createElement('defs', null, React.createElement('filter', { id: filterId, x:"-50%", y:"-50%", width:"200%", height:"200%" },
                     React.createElement('feDropShadow', { dx: "0", dy: "0", stdDeviation: "5", floodColor: color }),
                     React.createElement('feDropShadow', { dx: "0", dy: "0", stdDeviation: "8", floodColor: color })
                 )),
@@ -230,6 +277,7 @@
             'char12': { id: 'char12', name: '뱅커', description: '10초마다 현재 점수의 1%를 보너스로 얻습니다.', skill: 'interest_score', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00ff7f", filterId: "char12-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#00ff7f" }), React.createElement('text', { x: "50", y: "68", fontSize: "45", textAnchor: "middle", fill: "black", fontWeight: "bold" }, "$")) },
             'char13': { id: 'char13', name: '이지스', description: '보호막 파괴 시, 주변 장애물을 파괴합니다.', skill: 'shield_blast', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#1e90ff", filterId: "char13-glow", className: className }, React.createElement('path', { d: "M50 10 L90 30 L90 70 L50 90 L10 70 L10 30 Z", fill: "none", stroke: "#1e90ff", strokeWidth: "8" }), React.createElement('path', { d: "M50 10 L90 70 M10 70 L90 30", stroke: "#fff", strokeWidth: "4" })) },
             'char14': { id: 'char14', name: '리듬', description: '연속으로 5회 점프 시 추가 점수를 얻습니다.', skill: 'rhythm_bonus', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff1493", filterId: "char14-glow", className: className }, React.createElement('path', { d: "M20 70 Q 35 40, 50 70 T 80 70", stroke: "#ff1493", strokeWidth: "6", fill: "none" }), React.createElement('path', { d: "M20 50 Q 35 20, 50 50 T 80 50", stroke: "#ff1493", strokeWidth: "6", fill: "none" })) },
+            'char15': { id: 'char15', name: '게이저', description: '액티브 스킬: 전방으로 파괴적인 레이저를 발사합니다.', skill: 'laser_beam', cooldown: 8, maxLevel: 10, baseStat: 100, unlockCost: 5000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff6347", filterId: "char15-glow", className: className }, React.createElement('path', { d: "M50 20 L80 50 L50 80 L20 50 Z", fill: "#ff6347" }), React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "white" }), React.createElement('circle', { cx: "50", cy: "50", r: "8", fill: "red" })) },
         };
 
         const PETS = {
@@ -247,10 +295,11 @@
             'pet12': { id: 'pet12', name: '미믹', description: '아이템 획득 시 20% 확률로 복제합니다.', skill: 'copy_item', maxLevel: 1, baseStat: 0.2, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ba55d3", filterId: "pet12-glow", className: className }, React.createElement('circle', { cx: "35", cy: "50", r: "20", fill: "#ba55d3" }), React.createElement('circle', { cx: "65", cy: "50", r: "20", fill: "#ba55d3", opacity: "0.7" })) },
             'pet13': { id: 'pet13', name: '블라스토이드', description: '젤리 50개를 모으면 작은 폭발을 일으킵니다.', skill: 'jelly_blast', maxLevel: 10, baseStat: 50, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#dc143c", filterId: "pet13-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#dc143c" }), React.createElement('path', { d: "M50 20 L55 45 L80 50 L55 55 L50 80 L45 55 L20 50 L45 45 Z", fill: "yellow" })) },
             'pet14': { id: 'pet14', name: '스파키', description: '피버 게이지 30%를 가지고 시작합니다.', skill: 'fever_start_boost', maxLevel: 1, baseStat: 30, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f0e68c", filterId: "pet14-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "25", fill: "#f0e68c" }), React.createElement('path', { d: "M50 25 V75 M25 50 H75", stroke: "#fff", strokeWidth: "6" })) },
+            'pet15': { id: 'pet15', name: '펄스', description: '액티브 스킬: 화면의 모든 장애물을 파괴합니다.', skill: 'emp_blast', cooldown: 15, maxLevel: 10, baseStat: 1, unlockCost: 5000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00BFFF", filterId: "pet15-glow", className: className }, React.createElement('path', { d: "M50 20 A 30 30 0 0 1 50 80 A 30 30 0 0 1 50 20 M50 35 A 15 15 0 0 1 50 65 A 15 15 0 0 1 50 35", fill: "none", stroke: "#00BFFF", strokeWidth: "8" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "white" })) },
         };
         
         const PARTNER_BONUSES = {
-            'char1_pet1': { name: '단단한 유대', description: '최대 체력 +15', type: 'max_health_bonus', value: 15 }, 'char2_pet2': { name: '황금 듀오', description: '젤리 획득 점수 +10%', type: 'jelly_score_bonus', value: 0.1 }, 'char5_pet4': { name: '타오르는 열정', description: '피버 지속 시간 +15%', type: 'fever_duration_bonus', value: 0.15 }, 'char7_pet3': { name: '완벽한 방어', description: '펫 스킬 쿨타임 -25%', type: 'pet_cooldown_reduction', value: 0.25 }, 'char8_pet5': { name: '불사조의 의지', description: '부활 시 체력 50%로 부활', type: 'revive_health_bonus', value: 0.5 }, 'char6_pet6': { name: '행운의 부자', description: '게임 종료 젤리 보너스 +10%', type: 'currency_bonus_final', value: 0.1 }, 'char3_pet7': { name: '자기장 강화', description: '자석 아이템 지속 시간 +30%', type: 'magnet_duration_bonus', value: 0.3 }, 'char4_pet8': { name: '시간의 지배자', description: '슬로우 효과 지속 시간 +20%', type: 'slow_duration_bonus', value: 0.2 }, 'char1_pet2': { name: '러너스 하이', description: '기본 젤리 점수 +5', type: 'base_jelly_score_bonus', value: 5 }, 'char2_pet1': { name: '꺼지지 않는 체력', description: '체력 자연 감소 속도 -15%', type: 'health_decay_reduction', value: 0.15 }, 'char7_pet8': { name: '아이템 마스터', description: '모든 아이템 지속 시간 +10%', type: 'all_item_duration_bonus', value: 0.1 },
+            'char1_pet1': { name: '단단한 유대', description: '최대 체력 +15', type: 'max_health_bonus', value: 15 }, 'char2_pet2': { name: '황금 듀오', description: '젤리 획득 점수 +10%', type: 'jelly_score_bonus', value: 0.1 }, 'char5_pet4': { name: '타오르는 열정', description: '피버 지속 시간 +15%', type: 'fever_duration_bonus', value: 0.15 }, 'char7_pet3': { name: '완벽한 방어', description: '펫 스킬 쿨타임 -25%', type: 'pet_cooldown_reduction', value: 0.25 }, 'char8_pet5': { name: '불사조의 의지', description: '부활 시 체력 50%로 부활', type: 'revive_health_bonus', value: 0.5 }, 'char6_pet6': { name: '행운의 부자', description: '게임 종료 젤리 보너스 +10%', type: 'currency_bonus_final', value: 0.1 }, 'char3_pet7': { name: '자기장 강화', description: '자석 아이템 지속 시간 +30%', type: 'magnet_duration_bonus', value: 0.3 }, 'char4_pet8': { name: '시간의 지배자', description: '슬로우 효과 지속 시간 +20%', type: 'slow_duration_bonus', value: 0.2 }, 'char1_pet2': { name: '러너스 하이', description: '기본 젤리 점수 +5', type: 'base_jelly_score_bonus', value: 5 }, 'char2_pet1': { name: '꺼지지 않는 체력', description: '체력 자연 감소 속도 -15%', type: 'health_decay_reduction', value: 0.15 }, 'char7_pet8': { name: '아이템 마스터', description: '모든 아이템 지속 시간 +10%', type: 'all_item_duration_bonus', value: 0.1 }, 'char15_pet15': { name: '시스템 붕괴', description: '액티브 스킬 쿨타임 -10%', type: 'active_skill_cooldown_reduction', value: 0.1 },
         };
 
         const TREASURES = {
@@ -258,7 +307,7 @@
         };
 
         const MISSIONS = [
-            { id: 'm1', description: '젤리 500개 수집', type: 'collect_jellies', target: 500, reward: { currency: 100, treasureChests: 0 } }, { id: 'm2', description: '1,000m 달리기', type: 'run_distance', target: 1000, reward: { currency: 100, treasureChests: 0 } }, { id: 'm3', description: '장애물 20개 파괴', type: 'destroy_obstacles', target: 20, reward: { currency: 150, treasureChests: 0 } }, { id: 'm4', description: '점프 100번 하기', type: 'jump_count', target: 100, reward: { currency: 100, treasureChests: 0 } }, { id: 'm5', description: '피버 타임 5번 발동', type: 'fever_count', target: 5, reward: { currency: 200, treasureChests: 1 } }, { id: 'm6', description: '한 게임에서 10,000점 달성', type: 'single_run_score', target: 10000, reward: { currency: 250, treasureChests: 0 } }, { id: 'm7', description: '젤리 2,500개 수집', type: 'collect_jellies', target: 2500, reward: { currency: 300, treasureChests: 0 } }, { id: 'm8', description: '5,000m 달리기', type: 'run_distance', target: 5000, reward: { currency: 300, treasureChests: 0 } }, { id: 'm9', description: '아이템 25개 사용', type: 'use_items', target: 25, reward: { currency: 200, treasureChests: 0 } }, { id: 'm10', description: '총 50,000점 누적', type: 'total_score', target: 50000, reward: { currency: 500, treasureChests: 1 } },
+            { id: 'm1', description: '젤리 500개 수집', type: 'collect_jellies', target: 500, reward: { currency: 100, gachaChests: 0 } }, { id: 'm2', description: '1,000m 달리기', type: 'run_distance', target: 1000, reward: { currency: 100, gachaChests: 0 } }, { id: 'm3', description: '장애물 20개 파괴', type: 'destroy_obstacles', target: 20, reward: { currency: 150, gachaChests: 0 } }, { id: 'm4', description: '점프 100번 하기', type: 'jump_count', target: 100, reward: { currency: 100, gachaChests: 0 } }, { id: 'm5', description: '피버 타임 5번 발동', type: 'fever_count', target: 5, reward: { currency: 200, gachaChests: 1 } }, { id: 'm6', description: '한 게임에서 10,000점 달성', type: 'single_run_score', target: 10000, reward: { currency: 250, gachaChests: 0 } }, { id: 'm7', description: '젤리 2,500개 수집', type: 'collect_jellies', target: 2500, reward: { currency: 300, gachaChests: 0 } }, { id: 'm8', description: '5,000m 달리기', type: 'run_distance', target: 5000, reward: { currency: 300, gachaChests: 0 } }, { id: 'm9', description: '아이템 25개 사용', type: 'use_items', target: 25, reward: { currency: 200, gachaChests: 0 } }, { id: 'm10', description: '총 50,000점 누적', type: 'total_score', target: 50000, reward: { currency: 500, gachaChests: 1 } }, { id: 'm11', description: '보스 1회 처치', type: 'boss_kills', target: 1, reward: { currency: 1000, gachaChests: 2 } },
         ];
         
         const ENHANCEMENTS = {
@@ -288,7 +337,8 @@
             }
             return baseStat;
         };
-
+        
+        // Game Object Icons
         const ObstacleLowIcon = () => React.createElement('div', { className: "w-full h-full bg-red-500 border-2 border-white rounded-md", style: { boxShadow: '0 0 10px #f00' } });
         const ObstacleHighIcon = () => React.createElement('div', { className: "w-full h-full bg-red-500 border-2 border-white rounded-md", style: { boxShadow: '0 0 10px #f00' } });
         const ObstacleSpikesIcon = () => React.createElement('div', { className: "w-full h-full bg-red-800 flex justify-around items-end p-1", style: { boxShadow: '0 0 10px #f00' } }, Array(5).fill(0).map((_, i) => React.createElement('div', { key: i, style: { width: '15%', height: '100%', background: 'white', clipPath: 'polygon(50% 0, 0 100%, 100% 100%)' } })));
@@ -302,6 +352,16 @@
         const ShieldItemIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-cyan-500 border-2 border-white", style: { boxShadow: '0 0 10px #0ff' } });
         const MagnetItemIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-blue-500 border-2 border-white", style: { boxShadow: '0 0 10px #00f' } });
         
+        // New Boss Battle Icons
+        const BossIcon = () => React.createElement('div', {className: 'w-full h-full'}, React.createElement(SvgIconWrapper, { color: "#f0f", filterId: "boss-glow" }, 
+           React.createElement('path', { d: "M 50,10 L 90,40 L 80,90 L 20,90 L 10,40 Z", fill: "#333", stroke: "#f0f", strokeWidth: "4" }),
+           React.createElement('circle', { cx: "50", cy: "45", r: "15", fill: "red", stroke: "white", strokeWidth: "2" }),
+           React.createElement('path', { d: "M 30,70 L 40,60 L 60,60 L 70,70 Z", fill: "#555" })
+        ));
+        const EnergyCoreIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-cyan-300", style: { boxShadow: '0 0 15px #0ff', animation: 'glow 1.5s ease-in-out infinite' } });
+        const BossProjectileIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-red-500", style: { boxShadow: '0 0 10px #f00' } });
+        const GazerLaserIcon = () => React.createElement('div', { className: "w-full h-full rounded-lg bg-gradient-to-r from-red-500 via-orange-300 to-red-500", style: { boxShadow: '0 0 15px #ff6347' } });
+
         // --- END OF MERGED constants.tsx ---
 
         // --- START OF MERGED App.tsx ---
@@ -322,15 +382,18 @@
             const [activeOverlay, setActiveOverlay] = useState(null);
             const [hitFlash, setHitFlash] = useState(false);
             const [scale, setScale] = useState(1);
+            const [gachaResult, setGachaResult] = useState(null);
             
-            const [gameState, setGameState] = useState({ status: 'menu', score: 0, distance: 0, gameSpeed: INITIAL_GAME_SPEED, isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0 });
-            
+            const [gameState, setGameState] = useState({ status: 'menu', score: 0, distance: 0, gameSpeed: INITIAL_GAME_SPEED, isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1 });
+            const [bossState, setBossState] = useState({ isActive: false, health: 0, maxHealth: BOSS_MAX_HEALTH, attackTimer: 0, pattern: 'idle', pos: {x:0,y:0} });
+
             const playerStateRef = useRef(null);
             const gameObjectsRef = useRef([]);
             const nextSpawnDistanceRef = useRef(0);
             const petSkillTimerRef = useRef({});
-            const inGameStatsRef = useRef({ jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0 });
+            const inGameStatsRef = useRef({ jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0, bossKills: 0 });
             const reviveUsedRef = useRef(false);
+            const nextBossDistanceRef = useRef(BOSS_APPEARANCE_DISTANCE);
             const [, forceUpdate] = useState({});
 
             const activePartnerBonus = useMemo(() => { if (!playerData) return null; const comboKey = `${selectedCharId}_${selectedPetId}`; return PARTNER_BONUSES[comboKey] || null; }, [selectedCharId, selectedPetId, playerData]);
@@ -344,22 +407,26 @@
 
             useEffect(() => {
                 try {
-                    const savedData = localStorage.getItem('ipkoDashDataV1');
+                    const savedData = localStorage.getItem('ipkoDashDataV2'); // Version bump
                     if (savedData) {
                         const parsedData = JSON.parse(savedData);
+                        // Migration from old data structure
                         if (!parsedData.missions) parsedData.missions = {};
                         if (!parsedData.treasures) parsedData.treasures = [];
                         if (!parsedData.equippedTreasures) parsedData.equippedTreasures = [];
                         if (!parsedData.enhancements) parsedData.enhancements = { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 };
+                        if (parsedData.treasureChests) { parsedData.gachaChests = parsedData.treasureChests; delete parsedData.treasureChests; }
+                        if (!parsedData.gachaChests) parsedData.gachaChests = 1;
+                        if (!parsedData.memoryFragments) parsedData.memoryFragments = 0;
                         setPlayerData(parsedData);
                     } else {
-                        const initialData = { characters: { 'char1': { level: 1 } }, pets: { 'pet1': { level: 1 } }, currency: 3000, highScore: 0, missions: {}, treasures: [], equippedTreasures: [], treasureChests: 1, enhancements: { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 } };
+                        const initialData = { characters: { 'char1': { level: 1 } }, pets: { 'pet1': { level: 1 } }, currency: 3000, highScore: 0, missions: {}, treasures: [], equippedTreasures: [], gachaChests: 3, enhancements: { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 }, memoryFragments: 0 };
                         setPlayerData(initialData);
                     }
                 } catch (error) { console.error("Failed to load player data:", error); }
             }, []);
 
-            useEffect(() => { if (playerData) { try { localStorage.setItem('ipkoDashDataV1', JSON.stringify(playerData)); } catch (error) { console.error("Failed to save player data:", error); } } }, [playerData]);
+            useEffect(() => { if (playerData) { try { localStorage.setItem('ipkoDashDataV2', JSON.stringify(playerData)); } catch (error) { console.error("Failed to save player data:", error); } } }, [playerData]);
             
             const getTreasureValue = useCallback((type) => {
                 if (!playerData?.equippedTreasures) return 0;
@@ -378,7 +445,7 @@
                         if (missionProgress.completed) return;
                         let progressToAdd = 0;
                         switch(mission.type) {
-                            case 'collect_jellies': progressToAdd = stats.jellies; break; case 'run_distance': progressToAdd = stats.distance; break; case 'destroy_obstacles': progressToAdd = stats.obstaclesDestroyed; break; case 'jump_count': progressToAdd = stats.jumps; break; case 'fever_count': progressToAdd = stats.fevers; break; case 'use_items': progressToAdd = stats.itemsUsed; break; case 'single_run_score': if(stats.currentRunScore > missionProgress.progress) { missionProgress.progress = stats.currentRunScore; } break; case 'total_score': progressToAdd = stats.currentRunScore; break;
+                            case 'collect_jellies': progressToAdd = stats.jellies; break; case 'run_distance': progressToAdd = stats.distance; break; case 'destroy_obstacles': progressToAdd = stats.obstaclesDestroyed; break; case 'jump_count': progressToAdd = stats.jumps; break; case 'fever_count': progressToAdd = stats.fevers; break; case 'use_items': progressToAdd = stats.itemsUsed; break; case 'single_run_score': if(stats.currentRunScore > missionProgress.progress) { missionProgress.progress = stats.currentRunScore; } break; case 'total_score': progressToAdd = stats.currentRunScore; break; case 'boss_kills': progressToAdd = stats.bossKills; break;
                         }
                         
                         if (isObserverEquipped && progressToAdd > 0) {
@@ -427,10 +494,12 @@
                 if (pet.skill === 'fever_start_boost') { initialFever = FEVER_GAUGE_MAX * (pet.baseStat / 100); }
                 gameObjectsRef.current = [];
                 nextSpawnDistanceRef.current = 0;
+                nextBossDistanceRef.current = BOSS_APPEARANCE_DISTANCE;
                 petSkillTimerRef.current = { health_potion: 0, shield_item: 0, generate_bonus_jelly: 0 };
-                inGameStatsRef.current = { jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0 };
+                inGameStatsRef.current = { jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0, bossKills: 0 };
                 reviveUsedRef.current = false;
-                setGameState({ status: 'playing', score: 0, distance: 0, gameSpeed: baseSpeed, isFeverTime: false, feverGauge: initialFever, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0 });
+                setGameState({ status: 'playing', score: 0, distance: 0, gameSpeed: baseSpeed, isFeverTime: false, feverGauge: initialFever, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1 });
+                setBossState({ isActive: false, health: 0, maxHealth: BOSS_MAX_HEALTH, attackTimer: 0, pattern: 'idle', pos: {x:0,y:0} });
             };
 
             const triggerGameOver = () => {
@@ -453,6 +522,23 @@
                     setGameState(prev => ({...prev, isLastDash: true, lastDashTimeLeft: duration}));
                 }
             };
+            
+            const startBossBattle = () => {
+                setGameState(prev => ({ ...prev, status: 'boss_battle' }));
+                setBossState({ isActive: true, health: BOSS_MAX_HEALTH, maxHealth: BOSS_MAX_HEALTH, attackTimer: 3, pattern: 'entering', pos: {x: WORLD_WIDTH - 250, y: 150} });
+                gameObjectsRef.current = gameObjectsRef.current.filter(obj => !obj.type.startsWith('obstacle'));
+            };
+            
+            const endBossBattle = (isWin) => {
+                if(isWin) {
+                    setGameState(prev => ({...prev, score: prev.score + 5000, worldLevel: prev.worldLevel + 1 }));
+                    inGameStatsRef.current.bossKills++;
+                    setPlayerData(prev => ({...prev, gachaChests: (prev.gachaChests || 0) + 1}));
+                }
+                setBossState(prev => ({ ...prev, isActive: false }));
+                nextBossDistanceRef.current = gameState.distance + BOSS_APPEARANCE_DISTANCE;
+                setTimeout(() => setGameState(prev => ({ ...prev, status: 'playing' })), 1000);
+            };
 
             const togglePause = () => { setGameState(prev => ({ ...prev, isPaused: !prev.isPaused })); };
             
@@ -462,15 +548,10 @@
                     if (obj.type.startsWith('obstacle')) {
                         const objCenter = { x: obj.pos.x + obj.size.x / 2, y: obj.pos.y + obj.size.y / 2 };
                         const dist = Math.sqrt(Math.pow(objCenter.x - center.x, 2) + Math.pow(objCenter.y - center.y, 2));
-                        if (dist < radius) {
-                            affected.push(obj.id);
-                        }
+                        if (dist < radius) { affected.push(obj.id); }
                     }
                 });
-                if (affected.length > 0) {
-                    inGameStatsRef.current.obstaclesDestroyed += affected.length;
-                    gameObjectsRef.current = gameObjectsRef.current.filter(obj => !affected.includes(obj.id));
-                }
+                if (affected.length > 0) { inGameStatsRef.current.obstaclesDestroyed += affected.length; gameObjectsRef.current = gameObjectsRef.current.filter(obj => !affected.includes(obj.id)); }
             };
 
             const spawnGameObject = useCallback(() => {
@@ -494,10 +575,42 @@
                 }
                 gameObjectsRef.current.push(...newObjects); nextSpawnDistanceRef.current = gameState.distance + Math.random() * 300 + 250;
             }, [gameState.distance, selectedCharId]);
+            
+            const bossLogic = useCallback((deltaTime) => {
+                let currentBoss = bossState;
+                currentBoss.attackTimer -= deltaTime;
+
+                if (currentBoss.attackTimer <= 0) {
+                     const nextPattern = Math.random() > 0.5 ? 'laser' : 'missiles';
+                     currentBoss.pattern = nextPattern;
+                     currentBoss.attackTimer = 4; // reset timer
+                     
+                     if (nextPattern === 'laser') {
+                         const isHigh = Math.random() > 0.5;
+                         gameObjectsRef.current.push({ id: Math.random(), type: 'boss_laser', pos: { x: PLAYER_X_POSITION + 50, y: isHigh ? WORLD_HEIGHT - GROUND_HEIGHT - 150 : WORLD_HEIGHT - GROUND_HEIGHT - 50 }, size: { x: WORLD_WIDTH, y: 20 }, Icon: GazerLaserIcon, lifetime: 1.5 });
+                     } else if (nextPattern === 'missiles') {
+                         for(let i=0; i<3; i++) {
+                             setTimeout(() => {
+                                gameObjectsRef.current.push({ id: Math.random(), type: 'boss_projectile', pos: { ...currentBoss.pos, x: currentBoss.pos.x - 50 }, size: { x: 40, y: 40 }, Icon: BossProjectileIcon, vx: -800, vy: (Math.random() - 0.5) * 300 });
+                             }, i * 200);
+                         }
+                     }
+                }
+                
+                // Spawn energy cores
+                if(Math.random() < 0.02) {
+                     gameObjectsRef.current.push({ id: Math.random(), type: 'energy_core', pos: { x: WORLD_WIDTH + 50, y: Math.random() * (WORLD_HEIGHT - GROUND_HEIGHT - 100) + 50 }, size: { x: 30, y: 30 }, Icon: EnergyCoreIcon });
+                }
+
+                setBossState(currentBoss);
+            }, [bossState]);
 
             const gameLoop = useCallback((deltaTime) => {
                 if (gameState.isPaused) return; const player = playerStateRef.current; if (!player) return; const character = CHARACTERS[selectedCharId]; const pet = PETS[selectedPetId]; const petLevel = playerData.pets[selectedPetId]?.level || 1; const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
                 
+                setGameState(prev => ({...prev, activeSkillCooldown: Math.max(0, prev.activeSkillCooldown - deltaTime) }));
+                if (gameState.status === 'boss_battle') { bossLogic(deltaTime); }
+
                 // --- SPEED & MOVEMENT ---
                 let speedMultiplier = 1; let speedIncreaseRate = GAME_SPEED_INCREASE_RATE;
                 if (player.isBlasting) speedMultiplier = BLAST_JELLY_SPEED_MULTIPLIER;
@@ -535,9 +648,16 @@
                 let rainbowBearCollected = false;
                 const remainingGameObjects = [];
                 for (const obj of gameObjectsRef.current) {
-                    if (player.activeEffects['magnet'] > 0 && (obj.type === 'jelly' || obj.type === 'big_jelly')) { const dist = Math.sqrt(Math.pow(obj.pos.x - playerCenter.x, 2) + Math.pow(obj.pos.y - playerCenter.y, 2)); if (dist < MAGNET_RADIUS) { obj.pos.x -= (obj.pos.x - playerCenter.x) * 0.1; obj.pos.y -= (obj.pos.y - playerCenter.y) * 0.1; } }
+                    let currentSpeed = (gameState.status === 'boss_battle') ? INITIAL_GAME_SPEED : actualSpeed;
+                    if (player.activeEffects['magnet'] > 0 && (obj.type === 'jelly' || obj.type === 'big_jelly' || obj.type === 'energy_core')) { const dist = Math.sqrt(Math.pow(obj.pos.x - playerCenter.x, 2) + Math.pow(obj.pos.y - playerCenter.y, 2)); if (dist < MAGNET_RADIUS) { obj.pos.x -= (obj.pos.x - playerCenter.x) * 0.1; obj.pos.y -= (obj.pos.y - playerCenter.y) * 0.1; } }
                     if (obj.type === 'obstacle_falling') { obj.vy = (obj.vy || 0) + GRAVITY * 0.3 * deltaTime; obj.pos.y += obj.vy * deltaTime; if (obj.pos.y > WORLD_HEIGHT) continue; }
-                    obj.pos.x -= actualSpeed * deltaTime; if (obj.pos.x < -obj.size.x) { continue; }
+                    
+                    if (obj.vx) obj.pos.x += obj.vx * deltaTime; else obj.pos.x -= currentSpeed * deltaTime;
+                    if (obj.vy) obj.pos.y += obj.vy * deltaTime;
+
+                    if (obj.lifetime) { obj.lifetime -= deltaTime; if (obj.lifetime <= 0) continue; }
+                    if (obj.pos.x < -obj.size.x) { continue; }
+
                     const objRect = { x: obj.pos.x, y: obj.pos.y, width: obj.size.x, height: obj.size.y };
                     let shouldKeep = true;
                     if (playerRect.x < objRect.x + objRect.width && playerRect.x + playerRect.width > objRect.x && playerRect.y < objRect.y + objRect.height && playerRect.y + playerRect.height > objRect.y) {
@@ -548,9 +668,12 @@
                         else if (obj.type.endsWith('_item') || obj.type.endsWith('_potion') || obj.type === 'blast_jelly') { handleItemCollision(obj.type); }
                         else if (obj.type === 'jelly') { handleJellyCollision(false); }
                         else if (obj.type === 'big_jelly') { handleJellyCollision(true); }
-                        else if (obj.type.startsWith('obstacle')) {
+                        else if (obj.type === 'energy_core') {
+                            setBossState(prev => { const newHealth = prev.health - 100; if(newHealth <= 0) endBossBattle(true); return {...prev, health: newHealth }; });
+                            shouldKeep = false;
+                        } else if (obj.type.startsWith('obstacle') || obj.type === 'boss_laser' || obj.type === 'boss_projectile') {
                             const isLiftInvincible = player.isSliding && character.skill === 'slide_invincible';
-                            if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash) { inGameStatsRef.current.obstaclesDestroyed++; newScore += FEVER_OBSTACLE_SCORE; shouldKeep = false; }
+                            if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash) { if(!obj.type.startsWith('boss')) { inGameStatsRef.current.obstaclesDestroyed++; newScore += FEVER_OBSTACLE_SCORE; shouldKeep = false; } }
                             else if (player.hasShield) { player.hasShield = false; if (character.skill === 'shield_blast') { createBlast(playerCenter, 200); } shouldKeep = false; }
                             else if (isLiftInvincible) { /* Pass through */ }
                             else if (pet.skill === 'damage_negation' && Math.random() * 100 < getPetStat(pet, petLevel, isSynergy)) { shouldKeep = false; }
@@ -564,38 +687,117 @@
                 // --- UPDATE STATE ---
                 inGameStatsRef.current.currentRunScore = newScore;
                 let isFeverNow = gameState.isFeverTime; if (!isFeverNow && newFeverGauge >= FEVER_GAUGE_MAX) { isFeverNow = true; inGameStatsRef.current.fevers++; let feverDurBonus = activePartnerBonus?.type === 'fever_duration_bonus' ? 1 + activePartnerBonus.value : 1; const enhancementFeverBonus = (playerData.enhancements.fever_duration || 0) * ENHANCEMENTS.fever_duration.baseValue; newFeverTimeLeft = (FEVER_DURATION + enhancementFeverBonus) * (1 + getTreasureValue('fever_duration')) * feverDurBonus; newFeverGauge = 0; }
-                if (newDistance > nextSpawnDistanceRef.current) spawnGameObject(); if (player.health <= 0 && !gameState.isLastDash) { startLastDash(); }
+                if (newDistance > nextSpawnDistanceRef.current && gameState.status === 'playing') spawnGameObject(); 
+                if (newDistance > nextBossDistanceRef.current && gameState.status === 'playing') startBossBattle();
+                if (player.health <= 0 && !gameState.isLastDash) { startLastDash(); }
                 setGameState(prev => ({ ...prev, score: Math.floor(newScore), distance: newDistance, gameSpeed: newGameSpeed, isFeverTime: isFeverNow, feverGauge: newFeverGauge, feverTimeLeft: newFeverTimeLeft }));
                 forceUpdate({});
-            }, [gameState, playerData, selectedCharId, selectedPetId, spawnGameObject, activePartnerBonus, getTreasureValue, finalizeRun]);
+            }, [gameState, playerData, selectedCharId, selectedPetId, spawnGameObject, activePartnerBonus, getTreasureValue, finalizeRun, bossLogic, bossState]);
 
-            useGameLoop(gameLoop, gameState.status === 'playing' && !gameState.isPaused);
+            useGameLoop(gameLoop, (gameState.status === 'playing' || gameState.status === 'boss_battle') && !gameState.isPaused);
 
-            const handleJump = useCallback(() => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.jumpCount >= 2 || player.isSliding) return; player.vy = PLAYER_JUMP_FORCE * (1 + getTreasureValue('jump_boost')); player.isJumping = true; player.jumpCount++; if (CHARACTERS[selectedCharId].skill === 'rhythm_bonus') { player.rhythmJumpCombo++; if(player.rhythmJumpCombo === 5) { setGameState(prev => ({...prev, score: prev.score + 1000})); player.rhythmJumpCombo = 0; } } }, [gameState.status, gameState.isPaused, getTreasureValue, selectedCharId]);
-            const handleJumpRelease = useCallback(() => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.vy <= 0) return; player.vy *= 0.5; }, [gameState.status, gameState.isPaused]);
-            const handleSlide = useCallback((isSliding) => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.isJumping) return; player.isSliding = isSliding; const newSize = isSliding ? PLAYER_SLIDE_SIZE : PLAYER_RUN_SIZE; const oldY = player.pos.y + player.size.y; player.size = newSize; player.pos.y = oldY - newSize.y; }, [gameState.status, gameState.isPaused]);
+            const handleJump = useCallback(() => { if (gameState.status !== 'playing' && gameState.status !== 'boss_battle' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.jumpCount >= 2 || player.isSliding) return; player.vy = PLAYER_JUMP_FORCE * (1 + getTreasureValue('jump_boost')); player.isJumping = true; player.jumpCount++; if (CHARACTERS[selectedCharId].skill === 'rhythm_bonus') { player.rhythmJumpCombo++; if(player.rhythmJumpCombo === 5) { setGameState(prev => ({...prev, score: prev.score + 1000})); player.rhythmJumpCombo = 0; } } }, [gameState.status, gameState.isPaused, getTreasureValue, selectedCharId]);
+            const handleJumpRelease = useCallback(() => { if (gameState.status !== 'playing' && gameState.status !== 'boss_battle' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.vy <= 0) return; player.vy *= 0.5; }, [gameState.status, gameState.isPaused]);
+            const handleSlide = useCallback((isSliding) => { if (gameState.status !== 'playing' && gameState.status !== 'boss_battle' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.isJumping) return; player.isSliding = isSliding; const newSize = isSliding ? PLAYER_SLIDE_SIZE : PLAYER_RUN_SIZE; const oldY = player.pos.y + player.size.y; player.size = newSize; player.pos.y = oldY - newSize.y; }, [gameState.status, gameState.isPaused]);
+            const handleActiveSkill = useCallback(() => {
+                if ((gameState.status !== 'playing' && gameState.status !== 'boss_battle') || gameState.isPaused || gameState.activeSkillCooldown > 0) return;
+                const player = playerStateRef.current;
+                const character = CHARACTERS[selectedCharId];
+                const pet = PETS[selectedPetId];
+                let cooldown = 0;
+                let skillUsed = false;
+                
+                if (character.skill === 'laser_beam') {
+                    skillUsed = true;
+                    cooldown = character.cooldown;
+                    gameObjectsRef.current.push({ id: Math.random(), type: 'gazer_laser', pos: {x: player.pos.x + player.size.x, y: player.pos.y + player.size.y/2 - 15}, size: {x: WORLD_WIDTH, y: 30}, Icon: GazerLaserIcon, lifetime: 0.5 });
+                    createBlast({x: WORLD_WIDTH/2, y: player.pos.y + player.size.y/2}, WORLD_WIDTH);
+                } else if (pet.skill === 'emp_blast') {
+                    skillUsed = true;
+                    cooldown = pet.cooldown;
+                    createBlast(playerCenter, WORLD_WIDTH);
+                }
+                
+                if (skillUsed) {
+                    let cooldownReduction = activePartnerBonus?.type === 'active_skill_cooldown_reduction' ? 1 - activePartnerBonus.value : 1;
+                    setGameState(prev => ({...prev, activeSkillCooldown: cooldown * cooldownReduction}));
+                }
+            }, [gameState, selectedCharId, selectedPetId, activePartnerBonus]);
 
             useEffect(() => {
-                const onKeyDown = (e) => { if (gameState.status !== 'playing' || e.repeat) return; if(e.code === 'Escape') togglePause(); if(gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJump(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(true); };
-                const onKeyUp = (e) => { if (gameState.status !== 'playing' || gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJumpRelease(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(false); };
+                const onKeyDown = (e) => { if ((gameState.status !== 'playing' && gameState.status !== 'boss_battle') || e.repeat) return; if(e.code === 'Escape') togglePause(); if(gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJump(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(true); if (e.code === 'KeyF') handleActiveSkill(); };
+                const onKeyUp = (e) => { if ((gameState.status !== 'playing' && gameState.status !== 'boss_battle') || gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJumpRelease(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(false); };
                 window.addEventListener('keydown', onKeyDown); window.addEventListener('keyup', onKeyUp); return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); };
-            }, [gameState.status, gameState.isPaused, handleJump, handleSlide, handleJumpRelease, togglePause]);
+            }, [gameState.status, gameState.isPaused, handleJump, handleSlide, handleJumpRelease, togglePause, handleActiveSkill]);
 
             const costReduction = getTreasureValue('cost_reduction');
             const handleLevelUp = (type, id) => {
                 setPlayerData(prev => { if (!prev) return null; const isChar = type === 'character'; const data = isChar ? prev.characters[id] : prev.pets[id]; const meta = isChar ? CHARACTERS[id] : PETS[id]; if (data.level >= meta.maxLevel) return prev; const cost = LEVEL_UP_COST(data.level, costReduction); if (prev.currency < cost) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency -= cost; (isChar ? newData.characters[id] : newData.pets[id]).level++; return newData; });
             };
-            const handleUnlockCharacter = (charId) => {
-                setPlayerData(prev => { const character = CHARACTERS[charId]; if (!prev || !character.unlockCost || prev.currency < character.unlockCost || prev.characters[charId]) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency -= character.unlockCost; newData.characters[charId] = { level: 1 }; return newData; });
-            };
-            const handleUnlockPet = (petId) => {
-                setPlayerData(prev => { const pet = PETS[petId]; if (!prev || !pet.unlockCost || prev.currency < pet.unlockCost || prev.pets[petId]) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency -= pet.unlockCost; newData.pets[petId] = { level: 1 }; return newData; });
+            const handleUnlock = (type, id) => {
+                setPlayerData(prev => {
+                    const isChar = type === 'character';
+                    const item = isChar ? CHARACTERS[id] : PETS[id];
+                    if (!prev || !item.unlockCost || prev.currency < item.unlockCost || (isChar ? prev.characters[id] : prev.pets[id])) return prev;
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    newData.currency -= item.unlockCost;
+                    if (isChar) { newData.characters[id] = { level: 1 }; } else { newData.pets[id] = { level: 1 }; }
+                    return newData;
+                });
             };
             const handleClaimMissionReward = (missionId) => {
-                 setPlayerData(prev => { const mission = MISSIONS.find(m => m.id === missionId); const missionProgress = prev.missions[missionId]; if(!mission || !missionProgress || !missionProgress.completed || missionProgress.claimed) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency += mission.reward.currency; newData.treasureChests = (newData.treasureChests || 0) + mission.reward.treasureChests; newData.missions[missionId].claimed = true; return newData; });
+                 setPlayerData(prev => { const mission = MISSIONS.find(m => m.id === missionId); const missionProgress = prev.missions[missionId]; if(!mission || !missionProgress || !missionProgress.completed || missionProgress.claimed) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency += mission.reward.currency; newData.gachaChests = (newData.gachaChests || 0) + mission.reward.gachaChests; newData.missions[missionId].claimed = true; return newData; });
             };
-            const handleOpenTreasureChest = () => {
-                setPlayerData(prev => { if(!prev || (prev.treasureChests || 0) < 1) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.treasureChests--; const unownedTreasures = Object.keys(TREASURES).filter(id => !newData.treasures.includes(id)); if(unownedTreasures.length > 0) { const newTreasureId = unownedTreasures[Math.floor(Math.random() * unownedTreasures.length)]; newData.treasures.push(newTreasureId); } else { newData.currency += 500; } return newData; });
+            const handleDrawGacha = () => {
+                setPlayerData(prev => {
+                    if (!prev || (prev.gachaChests || 0) < 1) return prev;
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    newData.gachaChests--;
+
+                    const luck = getTreasureValue('luck_boost');
+                    const roll = Math.random();
+                    let result = null;
+
+                    // Rarity thresholds: Epic (Char) 5%, Rare (Pet) 15%, Uncommon (Treasure) 30%
+                    if (roll < 0.05 + luck * 0.1) { // Epic
+                        const unowned = Object.values(CHARACTERS).filter(c => !newData.characters[c.id]);
+                        if(unowned.length > 0) {
+                            const char = unowned[Math.floor(Math.random() * unowned.length)];
+                            newData.characters[char.id] = { level: 1 };
+                            result = { type: 'character', item: char };
+                        } else {
+                            newData.memoryFragments += 50;
+                            result = { type: 'fragments', amount: 50 };
+                        }
+                    } else if (roll < 0.20 + luck * 0.2) { // Rare
+                        const unowned = Object.values(PETS).filter(p => !newData.pets[p.id]);
+                        if(unowned.length > 0) {
+                            const pet = unowned[Math.floor(Math.random() * unowned.length)];
+                            newData.pets[pet.id] = { level: 1 };
+                            result = { type: 'pet', item: pet };
+                        } else {
+                            newData.memoryFragments += 20;
+                            result = { type: 'fragments', amount: 20 };
+                        }
+                    } else if (roll < 0.50 + luck * 0.3) { // Uncommon
+                        const unowned = Object.values(TREASURES).filter(t => !newData.treasures.includes(t.id));
+                         if(unowned.length > 0) {
+                            const treasure = unowned[Math.floor(Math.random() * unowned.length)];
+                            newData.treasures.push(treasure.id);
+                            result = { type: 'treasure', item: treasure };
+                        } else {
+                             newData.currency += 1000;
+                             result = { type: 'currency', amount: 1000 };
+                        }
+                    } else { // Common
+                        const amount = 250 + Math.floor(Math.random() * 751);
+                        newData.currency += amount;
+                        result = { type: 'currency', amount };
+                    }
+                    
+                    setGachaResult(result);
+                    return newData;
+                });
             };
             const handleToggleEquipTreasure = (treasureId) => {
                 setPlayerData(prev => { const newData = JSON.parse(JSON.stringify(prev)); const equipped = new Set(newData.equippedTreasures || []); if(equipped.has(treasureId)) { equipped.delete(treasureId); } else { if(equipped.size < 3) { equipped.add(treasureId); } } newData.equippedTreasures = Array.from(equipped); return newData; });
@@ -614,32 +816,15 @@
                 const charLevel = playerData.characters[selectedCharId]?.level || 1;
                 const petLevel = playerData.pets[selectedPetId]?.level || 1;
 
-                const TopBar = () => (
-                    React.createElement('header', { className: 'w-full p-4 flex justify-between items-center text-lg' },
-                        React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' },
-                            React.createElement('span', {className: 'text-yellow-400 font-bold'}, 'J'),
-                            React.createElement('span', null, playerData.currency)
-                        ),
-                        React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' },
-                           '📦',
-                           React.createElement('span', null, playerData.treasureChests || 0)
-                        )
-                    )
-                );
-
-                const NavButton = ({ icon, label, onClick, active }) => (
-                    React.createElement('button', { onClick, className: `nav-button ${active ? 'active' : ''}` },
-                        React.createElement('div', { className: 'w-10 h-10 p-1' }, icon),
-                        React.createElement('span', null, label)
-                    )
-                );
-
                 return React.createElement('div', { className: 'w-full h-full flex flex-col text-white' },
-                    React.createElement(TopBar, null),
+                    React.createElement('header', { className: 'w-full p-4 flex justify-between items-center text-lg' },
+                        React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, React.createElement('span', {className: 'text-yellow-400 font-bold'}, 'J'), playerData.currency),
+                        React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, '🧩', playerData.memoryFragments || 0)
+                    ),
                     React.createElement('main', { className: 'flex-grow flex flex-col items-center justify-center relative' },
                         React.createElement('h1', { className: 'absolute top-0 text-3xl font-black glowing-text' }, "잎코대쉬"),
-                        React.createElement('div', { className: 'w-40 h-40', onClick: () => setActiveOverlay('team') }, React.createElement(SelectedCharacterIcon, null)),
-                        React.createElement('div', { className: 'w-20 h-20 absolute bottom-[25%] right-[30%]', onClick: () => setActiveOverlay('team') }, React.createElement(SelectedPetIcon, null)),
+                        React.createElement('div', { className: 'w-40 h-40 player-running', onClick: () => setActiveOverlay('team') }, React.createElement(SelectedCharacterIcon, null)),
+                        React.createElement('div', { className: 'w-20 h-20 absolute bottom-[25%] right-[30%] player-running', style:{animationDuration: '0.6s'}, onClick: () => setActiveOverlay('team') }, React.createElement(SelectedPetIcon, null)),
                          activePartnerBonus && React.createElement('div', { className: "bg-purple-500/20 border border-purple-400 p-2 rounded-lg text-center absolute top-12" },
                             React.createElement('p', { className: "font-bold text-sm text-purple-300" }, `✨ 짝꿍 효과: ${activePartnerBonus.name} ✨`),
                             React.createElement('p', { className: "text-xs text-purple-200" }, activePartnerBonus.description)
@@ -652,28 +837,29 @@
                         ),
                         React.createElement('button', { onClick: startGame, className: "w-full py-4 text-xl font-black ui-button" }, "GAME START"),
                         React.createElement('div', { className: 'w-full flex justify-around p-2 bg-black/30 rounded-full border border-gray-700' },
-                           React.createElement(NavButton, { label: '팀 편성', onClick: () => setActiveOverlay('team'), icon: '👥' }),
-                           React.createElement(NavButton, { label: '강화', onClick: () => setActiveOverlay('enhancements'), icon: '🚀' }),
-                           React.createElement(NavButton, { label: '미션', onClick: () => setActiveOverlay('missions'), icon: '🎯' }),
-                           React.createElement(NavButton, { label: '보물', onClick: () => setActiveOverlay('treasures'), icon: '💎' })
+                           React.createElement('button', { onClick: () => setActiveOverlay('team'), className: 'nav-button' }, '👥', React.createElement('span', null, '팀 편성')),
+                           React.createElement('button', { onClick: () => setActiveOverlay('enhancements'), className: 'nav-button' }, '🚀', React.createElement('span', null, '강화')),
+                           React.createElement('button', { onClick: () => setActiveOverlay('gacha'), className: 'nav-button' }, '🎁', React.createElement('span', null, '뽑기')),
+                           React.createElement('button', { onClick: () => setActiveOverlay('missions'), className: 'nav-button' }, '🎯', React.createElement('span', null, '미션')),
+                           React.createElement('button', { onClick: () => setActiveOverlay('treasures'), className: 'nav-button' }, '💎', React.createElement('span', null, '보물'))
                         )
                     )
                 );
             };
 
-            const renderOverlay = (title, children) => (
+            const renderOverlay = (title, children, onClose) => (
                  React.createElement('div', { className: 'main-overlay overlay-fade-in' },
                     React.createElement('header', { className: 'p-4 flex items-center justify-between border-b border-gray-700' },
-                        React.createElement('div', null),
+                        React.createElement('div', {className: 'w-8'}),
                         React.createElement('h2', { className: 'text-xl font-bold' }, title),
-                        React.createElement('button', { onClick: () => setActiveOverlay(null), className: 'text-2xl font-bold' }, '×')
+                        React.createElement('button', { onClick: onClose || (() => setActiveOverlay(null)), className: 'text-2xl font-bold w-8' }, '×')
                     ),
                     React.createElement('div', { className: 'flex-grow p-4 overflow-y-auto' }, children)
                  )
             );
 
             const renderTeamSelection = () => {
-                const renderList = (items, type) => (
+                const renderList = (items, type, selectionHandler) => (
                     React.createElement('div', { className: 'flex-1 overflow-y-auto' },
                         React.createElement('div', { className: 'grid grid-cols-2 gap-4' },
                             Object.values(items).map(item => {
@@ -682,22 +868,17 @@
                                 const isSelected = isChar ? selectedCharId === item.id : selectedPetId === item.id;
                                 
                                 if (isUnlocked) {
-                                    return React.createElement('div', { key: item.id, onClick: () => isChar ? setSelectedCharId(item.id) : setSelectedPetId(item.id), className: `selection-card p-2 text-center ${isSelected ? 'selected' : ''}` },
+                                    return React.createElement('div', { key: item.id, onClick: () => selectionHandler(item.id), className: `selection-card p-2 text-center ${isSelected ? 'selected' : ''}` },
                                         React.createElement(item.Icon, { className: "w-16 h-16 mx-auto" }),
                                         React.createElement('p', { className: "font-bold mt-1 text-sm" }, item.name),
                                         React.createElement('p', { className: "text-xs" }, `Lv. ${(isChar ? playerData.characters[item.id] : playerData.pets[item.id])?.level || 1}`)
                                     );
                                 } else {
-                                    const unlockCost = item.unlockCost;
-                                    const canAfford = unlockCost && playerData.currency >= unlockCost;
-                                    const handleUnlock = isChar ? () => handleUnlockCharacter(item.id) : () => handleUnlockPet(item.id);
+                                    const canAfford = item.unlockCost && playerData.currency >= item.unlockCost;
                                     return React.createElement('div', { key: item.id, className: "selection-card p-2 text-center opacity-70" },
-                                        React.createElement('div', { className: "relative w-16 h-16 mx-auto" },
-                                            React.createElement(item.Icon, null),
-                                            React.createElement('div', { className: 'absolute inset-0 bg-black/70 rounded-lg flex items-center justify-center' }, '🔒')
-                                        ),
+                                        React.createElement('div', { className: "relative w-16 h-16 mx-auto" }, React.createElement(item.Icon, null), React.createElement('div', { className: 'absolute inset-0 bg-black/70 rounded-lg flex items-center justify-center' }, '🔒')),
                                         React.createElement('p', { className: "font-bold mt-1 text-sm" }, item.name),
-                                        unlockCost ? React.createElement('button', { onClick: handleUnlock, disabled: !canAfford, className: "w-full mt-1 ui-button text-xs py-1" }, `${unlockCost} J`) : null
+                                        item.unlockCost ? React.createElement('button', { onClick: () => handleUnlock(type, item.id), disabled: !canAfford, className: "w-full mt-1 ui-button text-xs py-1" }, `${item.unlockCost} J`) : null
                                     );
                                 }
                             })
@@ -706,8 +887,8 @@
                 );
                  return renderOverlay('팀 편성',
                     React.createElement('div', { className: 'flex h-full gap-4' },
-                        renderList(CHARACTERS, 'character'),
-                        renderList(PETS, 'pet')
+                        renderList(CHARACTERS, 'character', setSelectedCharId),
+                        renderList(PETS, 'pet', setSelectedPetId)
                     )
                  );
             };
@@ -749,11 +930,6 @@
 
             const renderTreasures = () => renderOverlay('보물', 
                 React.createElement('div', null,
-                    React.createElement('div', {className: "text-center mb-4 p-4 rounded-lg bg-black/30 border border-gray-700"}, 
-                        React.createElement('p', {className: "text-2xl font-bold"}, "💎 보물 상자 💎"),
-                        React.createElement('p', {className: "text-3xl font-bold text-yellow-300 my-2"}, `x ${playerData.treasureChests || 0}`),
-                        React.createElement('button', { onClick: handleOpenTreasureChest, disabled: (playerData.treasureChests || 0) < 1, className: "ui-button" }, "1개 열기")
-                    ),
                     React.createElement('h3', {className: 'font-bold text-lg mb-2'}, '보유 보물 (최대 3개 장착)'),
                     React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
                         playerData.treasures.map(id => {
@@ -767,17 +943,41 @@
                 )
             );
             
+             const renderGacha = () => renderOverlay('네온 상자 뽑기', 
+                React.createElement('div', {className: 'flex flex-col items-center justify-center h-full text-center'}, 
+                    gachaResult ?
+                        React.createElement('div', { className: 'fade-in flex flex-col items-center' },
+                           React.createElement('p', {className: 'text-2xl font-bold mb-4'}, '획득!'),
+                           gachaResult.item?.Icon && React.createElement(gachaResult.item.Icon, {className: 'w-32 h-32'}),
+                           React.createElement('p', {className: 'text-xl font-bold mt-2'}, gachaResult.item?.name || `+${gachaResult.amount}`),
+                           React.createElement('p', {className: 'text-lg'}, gachaResult.type === 'currency' ? '젤리' : gachaResult.type === 'fragments' ? '메모리 조각' : ''),
+                           React.createElement('button', {onClick: () => setGachaResult(null), className: 'ui-button mt-8'}, '확인')
+                        )
+                    :
+                        React.createElement('div', {className: 'flex flex-col items-center'},
+                            React.createElement('p', {className: 'text-3xl font-bold'}, '🎁'),
+                            React.createElement('p', {className: 'text-2xl font-bold mt-4'}, '네온 상자'),
+                            React.createElement('p', {className: 'text-3xl font-bold text-yellow-300 my-2'}, `x ${playerData.gachaChests || 0}`),
+                            React.createElement('button', { onClick: handleDrawGacha, disabled: (playerData.gachaChests || 0) < 1, className: "ui-button" }, "1개 열기")
+                        )
+                ), () => { setGachaResult(null); setActiveOverlay(null); }
+            );
+
             const renderGame = () => {
                 const player = playerStateRef.current; if (!player) return null;
                 const CurrentCharacterIcon = CHARACTERS[selectedCharId].Icon;
                 let playerClass = 'player-running'; if(player.isGiant) playerClass = 'player-giant'; else if (player.isJumping) playerClass = player.vy > 0 ? 'player-jumping' : 'player-falling';
                 let playerTransform = ''; if(player.isBlasting) playerTransform = `translateX(${Math.random()*10 - 5}px)`;
+                const character = CHARACTERS[selectedCharId];
+                const pet = PETS[selectedPetId];
+                const hasActiveSkill = character.skill === 'laser_beam' || pet.skill === 'emp_blast';
 
                 return React.createElement('div', { className: "relative w-full h-full overflow-hidden" },
                     hitFlash && React.createElement('div', { className: "hit-flash-overlay" }),
                     gameState.isLastDash && React.createElement('div', { className: "last-dash-overlay" }),
                     gameState.isFeverTime && React.createElement('div', { className: "fever-active-overlay" }),
                     React.createElement('div', { className: "absolute top-0 left-0", style: { width: WORLD_WIDTH, height: WORLD_HEIGHT } },
+                        bossState.isActive && React.createElement('div', { className: "absolute", style: { left: bossState.pos.x, top: bossState.pos.y, width: 200, height: 200, animation: 'boss-idle 2s ease-in-out infinite' }}, React.createElement(BossIcon, null)),
                         React.createElement('div', { className: `absolute ${playerClass}`, style: { left: player.pos.x, top: player.pos.y, width: player.size.x, height: player.size.y, transform: playerTransform, transition: 'width 0.1s, height 0.1s' } },
                            React.createElement(CurrentCharacterIcon, null),
                            player.hasShield && React.createElement('div', { className: 'shield-effect' })
@@ -785,21 +985,31 @@
                         gameObjectsRef.current.map(obj => React.createElement('div', { key: obj.id, className: "absolute", style: { left: obj.pos.x, top: obj.pos.y, width: obj.size.x, height: obj.size.y } }, React.createElement(obj.Icon, null))),
                         React.createElement('div', { className: "absolute bottom-0 left-0 w-full bg-cyan-800", style: { height: GROUND_HEIGHT, boxShadow: '0 -10px 20px rgba(0, 255, 255, 0.5)' } })
                     ),
-                    React.createElement('div', { className: "absolute top-2 left-4 right-4 text-white font-bold flex items-center gap-4" },
-                        React.createElement('div', { className: 'text-2xl' }, `SCORE: ${gameState.score}`),
-                        React.createElement('div', { className: 'flex-grow flex flex-col gap-1' },
-                            React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-3 progress-bar health-bar", style: { width: `${(player.health / player.maxHealth) * 100}%` } })),
-                            React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-2 progress-bar fever-bar", style: { width: `${(gameState.feverGauge / FEVER_GAUGE_MAX) * 100}%` } }))
-                        ),
-                         React.createElement('button', {onClick: togglePause, className: "w-10 h-10 p-1 flex-shrink-0"}, 
-                          React.createElement('svg', { viewBox: "0 0 100 100", fill: "white" }, 
-                            React.createElement('rect', { x: "25", y: "15", width: "15", height: "70", rx:"5" }),
-                            React.createElement('rect', { x: "60", y: "15", width: "15", height: "70", rx:"5" })
-                          )
+                    React.createElement('div', { className: "absolute top-2 left-4 right-4 text-white font-bold flex flex-col gap-2" },
+                         bossState.isActive && React.createElement('div', null,
+                            React.createElement('p', {className: 'text-center text-red-400 text-lg font-black glowing-text mb-1'}, 'BOSS'),
+                            React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-4 progress-bar boss-health-bar", style: { width: `${(bossState.health / bossState.maxHealth) * 100}%` } }))
+                         ),
+                         React.createElement('div', { className: "flex items-center gap-4"},
+                            React.createElement('div', { className: 'text-2xl' }, `SCORE: ${gameState.score}`),
+                            React.createElement('div', { className: 'flex-grow flex flex-col gap-1' },
+                                React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-3 progress-bar health-bar", style: { width: `${(player.health / player.maxHealth) * 100}%` } })),
+                                React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-2 progress-bar fever-bar", style: { width: `${(gameState.feverGauge / FEVER_GAUGE_MAX) * 100}%` } }))
+                            ),
+                            React.createElement('button', {onClick: togglePause, className: "w-10 h-10 p-1 flex-shrink-0"}, 
+                              React.createElement('svg', { viewBox: "0 0 100 100", fill: "white" }, 
+                                React.createElement('rect', { x: "25", y: "15", width: "15", height: "70", rx:"5" }),
+                                React.createElement('rect', { x: "60", y: "15", width: "15", height: "70", rx:"5" })
+                              )
+                            )
                         )
                     ),
                     React.createElement('div', { className: "control-button left-4", onMouseDown: handleJump, onMouseUp: handleJumpRelease, onTouchStart: (e) => { e.preventDefault(); handleJump(); }, onTouchEnd: (e) => { e.preventDefault(); handleJumpRelease(); } }, React.createElement('span', { className: "text-5xl text-white/80" }, "↑")),
-                    React.createElement('div', { className: "control-button right-4", onMouseDown: () => handleSlide(true), onMouseUp: () => handleSlide(false), onTouchStart: (e) => { e.preventDefault(); handleSlide(true); }, onTouchEnd: (e) => { e.preventDefault(); handleSlide(false); } }, React.createElement('span', { className: "text-5xl text-white/80" }, "↓"))
+                    React.createElement('div', { className: "control-button right-4", onMouseDown: () => handleSlide(true), onMouseUp: () => handleSlide(false), onTouchStart: (e) => { e.preventDefault(); handleSlide(true); }, onTouchEnd: (e) => { e.preventDefault(); handleSlide(false); } }, React.createElement('span', { className: "text-5xl text-white/80" }, "↓")),
+                    hasActiveSkill && React.createElement('button', { className: "control-button skill-button", onClick: handleActiveSkill, disabled: gameState.activeSkillCooldown > 0}, 
+                        React.createElement('span', { className: "text-4xl text-white/80" }, "⚡️"),
+                        gameState.activeSkillCooldown > 0 && React.createElement('div', {className: 'cooldown-overlay'}, Math.ceil(gameState.activeSkillCooldown))
+                    )
                 );
             };
 
@@ -822,16 +1032,17 @@
             );
             
             return React.createElement('div', { className: "relative w-screen h-screen bg-black text-white flex items-center justify-center overflow-hidden font-sans antialiased select-none" },
-                React.createElement('div', { className: "scrolling-background" }),
+                React.createElement('div', { className: "scrolling-background", style: { filter: `hue-rotate(${ (gameState.worldLevel -1) * 60 }deg)` } }),
                  React.createElement('div', { className: "relative overflow-hidden bg-black/20", style: { width: WORLD_WIDTH, height: WORLD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'center center' } },
                     gameState.status === 'menu' && renderMenu(),
-                    (gameState.status === 'playing' || gameState.status === 'gameOver') && renderGame(),
+                    (gameState.status === 'playing' || gameState.status === 'gameOver' || gameState.status === 'boss_battle') && renderGame(),
                     gameState.status === 'gameOver' && renderGameOver(),
                     gameState.isPaused && renderPauseMenu(),
                     activeOverlay === 'team' && renderTeamSelection(),
                     activeOverlay === 'enhancements' && renderEnhancements(),
                     activeOverlay === 'missions' && renderMissions(),
-                    activeOverlay === 'treasures' && renderTreasures()
+                    activeOverlay === 'treasures' && renderTreasures(),
+                    activeOverlay === 'gacha' && renderGacha()
                 )
             );
         };
