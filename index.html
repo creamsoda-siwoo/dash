@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>잎코대쉬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Noto Sans KR', sans-serif;
+        background-color: #0c0a1e;
+        overflow: hidden;
+        touch-action: none;
+      }
+      @keyframes glow {
+        0%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #0ff, 0 0 20px #0ff; }
+        50% { text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #0ff, 0 0 40px #0ff; }
+      }
+      .glowing-text {
+        animation: glow 1.5s ease-in-out infinite;
+      }
+      @keyframes scroll-bg {
+        0% { background-position: 0 0; }
+        100% { background-position: -2000px 0; }
+      }
+      .scrolling-background {
+          width: 100%;
+          height: 100%;
+          position: absolute;
+          top: 0; left: 0;
+          background: 
+            radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%),
+            url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><line x1="100" y1="0" x2="100" y2="200" stroke="rgba(0, 255, 255, 0.1)" stroke-width="1"/><line x1="0" y1="100" x2="200" y2="100" stroke="rgba(0, 255, 255, 0.1)" stroke-width="1"/></svg>'),
+            url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"><rect width="1" height="1" fill="rgba(255,255,255,0.2)"/></svg>');
+          animation: scroll-bg 40s linear infinite;
+          z-index: -1;
+      }
+      @keyframes fade-in {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .fade-in {
+        animation: fade-in 0.5s ease-out forwards;
+      }
+
+      /* Player Animations */
+      @keyframes run-cycle {
+        0%, 100% { transform: translateY(0) rotate(-2deg); }
+        50% { transform: translateY(-6px) rotate(2deg); }
+      }
+      .player-running {
+        animation: run-cycle 0.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      .player-jumping {
+        transform: rotate(-10deg);
+      }
+      .player-falling {
+        transform: rotate(10deg);
+      }
+      @keyframes giant-stomp {
+        0%, 100% { transform: translateY(0) scale(1.5); }
+        50% { transform: translateY(-10px) scale(1.5); }
+      }
+      .player-giant {
+        animation: giant-stomp 0.5s ease-in-out infinite;
+      }
+
+      /* Visual Effects */
+      @keyframes hit-flash-anim {
+        0% { opacity: 0.5; }
+        100% { opacity: 0; }
+      }
+      .hit-flash-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: red;
+        pointer-events: none;
+        opacity: 0;
+        animation: hit-flash-anim 0.2s ease-out;
+        z-index: 100;
+      }
+       @keyframes last-dash-anim {
+        0%, 100% { box-shadow: inset 0 0 50px 20px rgba(255, 0, 0, 0.4); }
+        50% { box-shadow: inset 0 0 80px 30px rgba(255, 0, 0, 0.7); }
+      }
+      .last-dash-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        pointer-events: none;
+        animation: last-dash-anim 0.5s ease-in-out infinite;
+        z-index: 90;
+      }
+      @keyframes combo-pop {
+        0% { transform: scale(1.5); opacity: 0; }
+        50% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .combo-counter {
+         animation: combo-pop 0.2s ease-out;
+      }
+
+      /* UI Elements */
+      .ui-button {
+        background-color: rgba(0, 255, 255, 0.2);
+        border: 2px solid #0ff;
+        border-radius: 8px;
+        padding: 8px 16px;
+        color: white;
+        font-weight: bold;
+        text-shadow: 0 0 5px #0ff;
+        transition: all 0.2s ease;
+      }
+      .ui-button:hover, .ui-button:active {
+        background-color: rgba(0, 255, 255, 0.4);
+        box-shadow: 0 0 15px #0ff;
+        transform: scale(1.05);
+      }
+       .ui-button:disabled {
+        background-color: rgba(128, 128, 128, 0.2);
+        border-color: #888;
+        color: #888;
+        text-shadow: none;
+        cursor: not-allowed;
+        transform: scale(1);
+      }
+      .selection-card {
+        border: 2px solid rgba(128, 128, 128, 0.5);
+        background: rgba(0,0,0,0.3);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+      .selection-card.selected {
+        border-color: #0ff;
+        box-shadow: 0 0 15px #0ff;
+        transform: scale(1.05);
+      }
+      .progress-bar-container {
+        background-color: rgba(0,0,0,0.5);
+        border-radius: 9999px;
+        padding: 2px;
+        border: 1px solid #555;
+      }
+      .progress-bar {
+        background: linear-gradient(90deg, #f0f, #0ff);
+        height: 100%;
+        border-radius: 9999px;
+        transition: width 0.3s ease;
+      }
+      .health-bar {
+         background: linear-gradient(90deg, #ff4d4d, #a3ff4d);
+      }
+      .fever-bar {
+         background: linear-gradient(90deg, #ff9800, #ffeb3b);
+         box-shadow: 0 0 10px #ffeb3b;
+      }
+      .control-button {
+        position: absolute;
+        bottom: 20px;
+        width: 140px; /* Increased size */
+        height: 140px; /* Increased size */
+        background-color: rgba(0, 255, 255, 0.2);
+        border: 2px solid #0ff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .control-button:active {
+        background-color: rgba(0, 255, 255, 0.4);
+      }
+      .tab-button {
+        padding: 8px 16px;
+        font-weight: bold;
+        color: #888;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+      .tab-button.active {
+        color: #0ff;
+        border-bottom-color: #0ff;
+        text-shadow: 0 0 5px #0ff;
+      }
+      @keyframes fever-glow {
+        0% { box-shadow: 0 0 20px 10px rgba(255, 235, 59, 0); }
+        50% { box-shadow: 0 0 40px 20px rgba(255, 235, 59, 0.4); }
+        100% { box-shadow: 0 0 20px 10px rgba(255, 235, 59, 0); }
+      }
+      .fever-active-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        animation: fever-glow 1s ease-in-out infinite;
+        z-index: 10;
+      }
+      @keyframes blast-effect {
+          from { transform: scaleX(1); opacity: 0.7; }
+          to { transform: scaleX(50); opacity: 0; }
+      }
+      .blast-trail {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,0,255,0.5), transparent);
+          animation: blast-effect 0.3s ease-out forwards;
+      }
+      .shield-effect {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 120%;
+          height: 120%;
+          border: 4px solid #0ff;
+          border-radius: 50%;
+          box-shadow: 0 0 15px #0ff;
+          opacity: 0.7;
+      }
+      .treasure-card {
+        border: 2px solid #a855f7;
+        background: rgba(168, 85, 247, 0.1);
+        border-radius: 12px;
+      }
+      .treasure-card.equipped {
+        border-color: #fde047;
+        box-shadow: 0 0 15px #fde047;
+      }
+       @keyframes partner-glow-anim {
+        0%, 100% { box-shadow: 0 0 10px #fde047, 0 0 5px #fff inset; }
+        50% { box-shadow: 0 0 20px #fde047, 0 0 10px #fff inset; }
+      }
+      .partner-bonus {
+        background-color: rgba(253, 224, 71, 0.1);
+        border: 2px solid #fde047;
+        animation: partner-glow-anim 2s ease-in-out infinite;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react": "https://esm.sh/react@18.2.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+        import React from 'react';
+        import ReactDOM from 'react-dom/client';
+
+        // --- START OF COMBINED GAME CODE ---
+
+        // --- START OF MERGED types.ts ---
+
+        // --- Utility Types ---
+        const IVector2D = {}; // Interfaces are used as types, no runtime equivalent needed
+
+        // --- Character, Pet, Treasure, Mission System ---
+        const CharacterSkill = {};
+        const PetSkill = {};
+        const TreasureType = {};
+        const MissionType = {};
+        const RewardType = {};
+        const PartnerBonusType = {};
+        
+        // --- In-Game Types ---
+        const GameObjectType = {};
+        const GameStatus = {};
+
+        // --- END OF MERGED types.ts ---
+
+
+        // --- START OF MERGED constants.tsx ---
+
+        // --- Game World Constants ---
+        const WORLD_WIDTH = 1280;
+        const WORLD_HEIGHT = 720;
+        const GROUND_HEIGHT = 60;
+        const GRAVITY = 3000;
+        const PLAYER_X_POSITION = 150;
+
+        // --- Player Constants ---
+        const PLAYER_JUMP_FORCE = 1100;
+        const PLAYER_RUN_SIZE = { x: 50, y: 70 };
+        const PLAYER_SLIDE_SIZE = { x: 70, y: 40 };
+        const INITIAL_MAX_HEALTH = 100;
+        const HEALTH_DECAY_RATE = 2.0; 
+        const OBSTACLE_DAMAGE = 25;
+
+        // --- Game Progression ---
+        const INITIAL_GAME_SPEED = 400;
+        const GAME_SPEED_INCREASE_RATE = 5;
+
+        // --- Fever Time ---
+        const FEVER_GAUGE_MAX = 100;
+        const FEVER_GAUGE_PER_JELLY = 5;
+        const FEVER_DURATION = 8;
+        const FEVER_OBSTACLE_SCORE = 100;
+        
+        // --- Combo System ---
+        const COMBO_DURATION = 2; // seconds
+        
+        // --- Last Dash ---
+        const LAST_DASH_DURATION = 3; // seconds
+
+        // --- Items ---
+        const GIANT_POTION_DURATION = 8;
+        const BLAST_JELLY_DURATION = 1.5;
+        const BLAST_JELLY_SPEED_MULTIPLIER = 2.5;
+        const SHIELD_ITEM_DURATION = 20; // Lasts 20s or until hit
+        const MAGNET_ITEM_DURATION = 10;
+        const MAGNET_RADIUS = 250;
+
+        // --- Icon Component ---
+        const SvgIconWrapper = ({ children, color, filterId, className }) => (
+            React.createElement('svg', { viewBox: "0 0 100 100", xmlns: "http://www.w3.org/2000/svg", className: className || "w-full h-full", style: { filter: `url(#${filterId})` } },
+                React.createElement('defs', null,
+                    React.createElement('filter', { id: filterId },
+                        React.createElement('feDropShadow', { dx: "0", dy: "0", stdDeviation: "5", floodColor: color }),
+                        React.createElement('feDropShadow', { dx: "0", dy: "0", stdDeviation: "8", floodColor: color })
+                    )
+                ),
+                children
+            )
+        );
+
+        // --- Characters ---
+        const CHARACTERS = {
+            'char1': {
+                id: 'char1', name: '네온 스트라이커', description: '기본에 충실한 밸런스형 런너입니다.', skill: 'none', maxLevel: 10, baseStat: 100,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#0ff", filterId: "char1-glow", className: className },
+                    React.createElement('rect', { x: "25", y: "30", width: "50", height: "70", rx: "10", fill: "#0ff", stroke: "#fff", strokeWidth: "5" }),
+                    React.createElement('circle', { cx: "50", cy: "30", r: "20", fill: "#0ff", stroke: "#fff", strokeWidth: "5" })
+                )
+            },
+            'char2': {
+                id: 'char2', name: '마젠타 팬텀', description: '더 높은 체력을 가지고 오래 버팁니다.', skill: 'extra_health', maxLevel: 10, baseStat: 120, unlockCost: 3000,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f0f", filterId: "char2-glow", className: className },
+                    React.createElement('polygon', { points: "50,10 90,90 10,90", fill: "#f0f", stroke: "#fff", strokeWidth: "5" })
+                )
+            },
+            'char3': {
+                id: 'char3', name: '볼텍스', description: '게임 시작 시 자석 효과를 가지고 시작합니다.', skill: 'start_magnet', maxLevel: 10, baseStat: 90, unlockCost: 4000,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#9400D3", filterId: "char3-glow", className: className },
+                    React.createElement('path', { d: "M50 10 C 90 10, 90 90, 50 90 S 10 90, 10 10 C 10 10, 50 10, 50 10 Z", transform: "rotate(45 50 50)", fill: "none", stroke: "#9400D3", strokeWidth: "6" }),
+                    React.createElement('circle', { cx: "50", cy: "50", r: "10", fill: "#fff" })
+                )
+            },
+            'char4': {
+                id: 'char4', name: '크로노', description: '체력이 50% 이하가 되면 게임 속도가 느려집니다.', skill: 'time_slow', maxLevel: 10, baseStat: 100, unlockCost: 10000,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00fa9a", filterId: "char4-glow", className: className },
+                    React.createElement('circle', { cx: "50", cy: "50", r: "40", fill: "none", stroke: "#00fa9a", strokeWidth: "6", strokeDasharray: "10 5" }),
+                    React.createElement('path', { d: "M50 20 V50 H70", fill: "none", stroke: "#fff", strokeWidth: "6" })
+                )
+            },
+            'char5': {
+                id: 'char5', name: '블레이즈', description: '게임 속도가 더 빠르지만, 점수 보너스를 얻습니다.', skill: 'high_speed', maxLevel: 10, baseStat: 80, unlockCost: 12000,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff4500", filterId: "char5-glow", className: className },
+                    React.createElement('path', { d: "M50 10 L60 40 L90 45 L65 65 L70 95 L50 80 L30 95 L35 65 L10 45 L40 40 Z", fill: "#ff4500", stroke: "#fff", strokeWidth: "4" })
+                )
+            },
+            'char6': {
+                id: 'char6', name: '클로버', description: '게임에 아이템이 더 자주 등장합니다.', skill: 'item_boost', maxLevel: 10, baseStat: 100, unlockCost: 8000,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#32cd32", filterId: "char6-glow", className: className },
+                    React.createElement('path', { d: "M50 25 C 30 5, 30 40, 50 50 C 70 40, 70 5, 50 25 Z", fill: "#32cd32" }),
+                    React.createElement('path', { d: "M75 50 C 95 30, 60 30, 50 50 C 60 70, 95 70, 75 50 Z", fill: "#32cd32" }),
+                    React.createElement('path', { d: "M50 75 C 30 95, 30 60, 50 50 C 70 60, 70 95, 50 75 Z", fill: "#32cd32" }),
+                    React.createElement('path', { d: "M25 50 C 5 30, 40 30, 50 50 C 40 70, 5 70, 25 50 Z", fill: "#32cd32" })
+                )
+            },
+            'char7': {
+                id: 'char7', name: '시너지', description: '장착한 펫의 능력이 20% 향상됩니다.', skill: 'pet_boost', maxLevel: 10, baseStat: 100, unlockCost: 15000,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#fafad2", filterId: "char7-glow", className: className },
+                    React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "none", stroke: "#fafad2", strokeWidth: "6" }),
+                    React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "#fafad2" })
+                )
+            },
+            'char8': {
+                id: 'char8', name: '피닉스', description: '최후의 질주 시간이 50% 증가합니다.', skill: 'last_dash_boost', maxLevel: 10, baseStat: 100, unlockCost: 18000,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff8c00", filterId: "char8-glow", className: className },
+                    React.createElement('path', { d: "M20 80 Q 50 20, 80 80 Q 50 50, 20 80 Z", fill: "#ff8c00" }),
+                     React.createElement('path', { d: "M30 70 Q 50 30, 70 70 Q 50 55, 30 70 Z", fill: "#ff4500", stroke:"#fff", strokeWidth:"2" })
+                )
+            },
+        };
+
+        // --- Pets ---
+        const PETS = {
+            'pet1': {
+                id: 'pet1', name: '큐브', description: '일정 시간마다 체력 포션을 생성합니다.', skill: 'health_potion', maxLevel: 10, baseStat: 20,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#fff", filterId: "pet1-glow", className: className },
+                    React.createElement('rect', { x: "20", y: "20", width: "60", height: "60", rx: "10", fill: "#fff", stroke: "#000", strokeWidth: "5", transform: "rotate(45 50 50)" })
+                )
+            },
+            'pet2': {
+                id: 'pet2', name: '윙키', description: '젤리 획득 시 추가 점수를 줍니다.', skill: 'score_bonus', maxLevel: 10, baseStat: 1,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff0", filterId: "pet2-glow", className: className },
+                    React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#ff0" }),
+                    React.createElement('path', { d: "M 35,40 Q 50,60 65,40", stroke: "black", strokeWidth: "5", fill: "none" })
+                )
+            },
+            'pet3': {
+                id: 'pet3', name: '실드론', description: '일정 시간마다 보호막 아이템을 생성합니다.', skill: 'shield_item', maxLevel: 10, baseStat: 30,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#40E0D0", filterId: "pet3-glow", className: className },
+                    React.createElement('path', { d: "M50 10 L90 30 L90 70 L50 90 L10 70 L10 30 Z", fill: "#40E0D0", stroke: "#fff", strokeWidth: "5" }),
+                    React.createElement('path', { d: "M50 25 L75 40 L75 60 L50 75 L25 60 L25 40 Z", fill: "none", stroke: "#fff", strokeWidth: "5" })
+                )
+            },
+            'pet4': {
+                id: 'pet4', name: '스파크', description: '젤리 획득 시 피버 게이지를 추가로 채웁니다.', skill: 'fever_boost', maxLevel: 10, baseStat: 1, // extra gauge per jelly
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffa500", filterId: "pet4-glow", className: className },
+                    React.createElement('path', { d: "M50 10 L40 45 H60 L50 90 L60 55 H40 Z", fill: "#ffa500", stroke: "#fff", strokeWidth: "4" })
+                )
+            },
+            'pet5': {
+                id: 'pet5', name: '제트', description: '체력이 0이 되면, 한 번 부활합니다 (체력 25%).', skill: 'revive', maxLevel: 1, baseStat: 1, // Only 1 level
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#b0c4de", filterId: "pet5-glow", className: className },
+                    React.createElement('path', { d: "M50 20 L70 40 L60 45 L80 65 L50 90 L20 65 L40 45 L30 40 Z", fill: "#b0c4de", stroke: "#fff", strokeWidth: "4" })
+                )
+            },
+            'pet6': {
+                id: 'pet6', name: '마이더스', description: '게임 종료 시 획득하는 젤리가 증가합니다.', skill: 'currency_boost', maxLevel: 10, baseStat: 5, // % bonus
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffd700", filterId: "pet6-glow", className: className },
+                    React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#ffd700", stroke: "#fff", strokeWidth: "4" }),
+                    React.createElement('text', { x: "50", y: "65", fontSize: "40", textAnchor: "middle", fill: "black", fontWeight: "bold" }, "J")
+                )
+            },
+            'pet7': {
+                id: 'pet7', name: '수호령', description: '5% 확률로 장애물 피해를 무시합니다.', skill: 'damage_negation', maxLevel: 10, baseStat: 5, // % chance
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#add8e6", filterId: "pet7-glow", className: className },
+                    React.createElement('path', { d: "M50 20 C 30 40, 30 70, 50 80 C 70 70, 70 40, 50 20 Z", fill: "#add8e6", opacity:"0.7" }),
+                    React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "#fff" })
+                )
+            },
+            'pet8': {
+                id: 'pet8', name: '듀라', description: '모든 아이템의 지속 시간이 25% 증가합니다.', skill: 'item_duration_boost', maxLevel: 1, baseStat: 0.25,
+                Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#cd853f", filterId: "pet8-glow", className: className },
+                     React.createElement('path', { d: "M30 20 H70 L60 50 L70 80 H30 L40 50 Z", fill: "#cd853f", stroke: "#fff", strokeWidth: "4" })
+                )
+            },
+        };
+        
+        // --- Partner Bonuses ---
+        const PARTNER_BONUSES = {
+            'char1_pet1': { name: '단단한 유대', description: '최대 체력 +15', type: 'max_health_bonus', value: 15 },
+            'char2_pet2': { name: '황금 듀오', description: '젤리 획득 점수 +10%', type: 'jelly_score_bonus', value: 0.1 },
+            'char5_pet4': { name: '타오르는 열정', description: '피버 지속 시간 +15%', type: 'fever_duration_bonus', value: 0.15 },
+            'char7_pet3': { name: '완벽한 방어', description: '펫 스킬 쿨타임 -25%', type: 'pet_cooldown_reduction', value: 0.25 },
+            'char8_pet5': { name: '불사조의 의지', description: '부활 시 체력 50%로 부활', type: 'revive_health_bonus', value: 0.5 },
+            'char6_pet6': { name: '행운의 부자', description: '게임 종료 젤리 보너스 +10%', type: 'currency_bonus_final', value: 0.1 },
+            'char3_pet7': { name: '자기장 강화', description: '자석 아이템 지속 시간 +30%', type: 'magnet_duration_bonus', value: 0.3 },
+            'char4_pet8': { name: '시간의 지배자', description: '슬로우 효과 지속 시간 +20%', type: 'slow_duration_bonus', value: 0.2 },
+            'char1_pet2': { name: '러너스 하이', description: '콤보 추가 점수 +20%', type: 'combo_score_bonus', value: 0.2 },
+            'char2_pet1': { name: '꺼지지 않는 체력', description: '체력 자연 감소 속도 -15%', type: 'health_decay_reduction', value: 0.15 },
+            'char7_pet8': { name: '아이템 마스터', description: '모든 아이템 지속 시간 +10%', type: 'all_item_duration_bonus', value: 0.1 },
+        };
+
+        // --- Treasures ---
+        const TREASURES = {
+            'tr1': { id: 'tr1', name: '빛나는 깃털', description: '점프 높이가 5% 증가합니다.', type: 'jump_boost', value: 0.05 },
+            'tr2': { id: 'tr2', name: '견고한 심장', description: '최대 체력이 10 증가합니다.', type: 'health_bonus', value: 10 },
+            'tr3': { id: 'tr3', name: '질주의 부츠', description: '기본 게임 속도가 5% 증가합니다.', type: 'speed_boost', value: 0.05 },
+            'tr4': { id: 'tr4', name: '황금 나침반', description: '획득 점수가 5% 증가합니다.', type: 'score_bonus', value: 0.05 },
+            'tr5': { id: 'tr5', name: '열정의 불꽃', description: '피버 지속시간이 10% 증가합니다.', type: 'fever_duration', value: 0.1 },
+            'tr6': { id: 'tr6', name: '수호자의 징표', description: '보호막 아이템 지속시간이 20% 증가합니다.', type: 'shield_duration', value: 0.2 },
+            'tr7': { id: 'tr7', name: '자력의 돌', description: '자석 아이템 지속시간이 20% 증가합니다.', type: 'magnet_duration', value: 0.2 },
+            'tr8': { id: 'tr8', name: '거인의 물약', description: '거인화 아이템 지속시간이 20% 증가합니다.', type: 'giant_duration', value: 0.2 },
+            'tr9': { id: 'tr9', name: '절약의 동전', description: '레벨업 비용이 5% 감소합니다.', type: 'cost_reduction', value: 0.05 },
+            'tr10': { id: 'tr10', name: '행운의 네잎클로버', description: '보물 상자에서 더 좋은 보물이 나올 확률이 증가합니다.', type: 'luck_boost', value: 0.1 },
+        };
+
+        // --- Missions ---
+        const MISSIONS = [
+            { id: 'm1', description: '젤리 500개 수집', type: 'collect_jellies', target: 500, reward: { currency: 100, treasureChests: 0 } },
+            { id: 'm2', description: '1,000m 달리기', type: 'run_distance', target: 1000, reward: { currency: 100, treasureChests: 0 } },
+            { id: 'm3', description: '장애물 20개 파괴 (피버/거인)', type: 'destroy_obstacles', target: 20, reward: { currency: 150, treasureChests: 0 } },
+            { id: 'm4', description: '점프 100번 하기', type: 'jump_count', target: 100, reward: { currency: 100, treasureChests: 0 } },
+            { id: 'm5', description: '피버 타임 5번 발동', type: 'fever_count', target: 5, reward: { currency: 200, treasureChests: 1 } },
+            { id: 'm6', description: '한 게임에서 10,000점 달성', type: 'single_run_score', target: 10000, reward: { currency: 250, treasureChests: 0 } },
+            { id: 'm7', description: '젤리 2,500개 수집', type: 'collect_jellies', target: 2500, reward: { currency: 300, treasureChests: 0 } },
+            { id: 'm8', description: '5,000m 달리기', type: 'run_distance', target: 5000, reward: { currency: 300, treasureChests: 0 } },
+            { id: 'm9', description: '아이템 25개 사용', type: 'use_items', target: 25, reward: { currency: 200, treasureChests: 0 } },
+            { id: 'm10', description: '총 50,000점 누적', type: 'total_score', target: 50000, reward: { currency: 500, treasureChests: 1 } },
+        ];
+
+
+        const LEVEL_UP_COST = (level, reduction = 0) => Math.floor((100 * Math.pow(level, 1.5)) * (1 - reduction));
+
+        const getCharacterStat = (char, level) => char.baseStat + (level - 1) * 10;
+        const getPetStat = (pet, level, isSynergy) => {
+            let baseStat = 0;
+            switch(pet.skill) {
+                case 'health_potion': baseStat = Math.max(5, pet.baseStat - (level - 1)); break;
+                case 'score_bonus': baseStat = pet.baseStat + (level - 1); break;
+                case 'shield_item': baseStat = Math.max(10, pet.baseStat - (level - 1) * 2); break;
+                case 'fever_boost': baseStat = pet.baseStat + (level - 1) * 0.5; break;
+                case 'currency_boost': baseStat = pet.baseStat + (level - 1) * 2; break; // Extra %
+                case 'damage_negation': baseStat = pet.baseStat + (level - 1) * 0.5; break; // % chance
+                default: baseStat = pet.baseStat; break;
+            }
+            if (isSynergy) {
+                 if (['health_potion', 'shield_item'].includes(pet.skill)) return baseStat * 0.8; // Cooldown reduction
+                 return baseStat * 1.2;
+            }
+            return baseStat;
+        };
+
+        // --- Game Object Icons ---
+        const ObstacleLowIcon = () => React.createElement('div', { className: "w-full h-full bg-red-500 border-2 border-white rounded-md", style: { boxShadow: '0 0 10px #f00' } });
+        const ObstacleHighIcon = () => React.createElement('div', { className: "w-full h-full bg-red-500 border-2 border-white rounded-md", style: { boxShadow: '0 0 10px #f00' } });
+        const JellyIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-yellow-300", style: { boxShadow: '0 0 8px #ff0' } });
+        const BigJellyIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-yellow-300 relative flex items-center justify-center", style: { boxShadow: '0 0 15px #ff0' } }, React.createElement('div', { className: "w-1/2 h-1/2 rounded-full bg-white/50" }));
+        const HealthPotionIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-green-400 border-2 border-white", style: { boxShadow: '0 0 10px #0f0' } });
+        const GiantPotionIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-purple-500 border-2 border-white", style: { boxShadow: '0 0 10px #f0f' } });
+        const BlastJellyIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-orange-500 border-2 border-white", style: { boxShadow: '0 0 10px #ff8c00' } });
+        const ShieldItemIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-cyan-500 border-2 border-white", style: { boxShadow: '0 0 10px #0ff' } });
+        const MagnetItemIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-blue-500 border-2 border-white", style: { boxShadow: '0 0 10px #00f' } });
+        
+        // --- END OF MERGED constants.tsx ---
+
+
+        // --- START OF MERGED App.tsx ---
+
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        const useGameLoop = (callback, isRunning) => {
+            const animationFrameId = useRef();
+            const lastTime = useRef(performance.now());
+
+            const loop = useCallback((time) => {
+                const deltaTime = (time - lastTime.current) / 1000;
+                lastTime.current = time;
+                callback(deltaTime);
+                animationFrameId.current = requestAnimationFrame(loop);
+            }, [callback]);
+
+            useEffect(() => {
+                if (isRunning) {
+                    lastTime.current = performance.now();
+                    animationFrameId.current = requestAnimationFrame(loop);
+                }
+                return () => {
+                    if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+                };
+            }, [isRunning, loop]);
+        };
+
+        const App = () => {
+            // --- State Management ---
+            const [playerData, setPlayerData] = useState(null);
+            const [selectedCharId, setSelectedCharId] = useState('char1');
+            const [selectedPetId, setSelectedPetId] = useState('pet1');
+            const [activeTab, setActiveTab] = useState('character');
+            const [hitFlash, setHitFlash] = useState(false);
+            
+            const [gameState, setGameState] = useState({ 
+                status: 'menu', score: 0, distance: 0, 
+                gameSpeed: INITIAL_GAME_SPEED, 
+                isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, 
+                isPaused: false,
+                isLastDash: false, lastDashTimeLeft: 0
+            });
+            
+            // Refs for mutable game state during loop
+            const playerStateRef = useRef(null);
+            const gameObjectsRef = useRef([]);
+            const nextSpawnDistanceRef = useRef(0);
+            const petSkillTimerRef = useRef({ health_potion: 0, shield_item: 0 });
+            const inGameStatsRef = useRef({ jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0 });
+            const reviveUsedRef = useRef(false);
+            const comboRef = useRef({ count: 0, timer: 0 });
+
+            const [, forceUpdate] = useState({});
+
+            const activePartnerBonus = useMemo(() => {
+                if (!playerData) return null;
+                const comboKey = `${selectedCharId}_${selectedPetId}`;
+                return PARTNER_BONUSES[comboKey] || null;
+            }, [selectedCharId, selectedPetId, playerData]);
+
+            // --- Data Persistence ---
+            useEffect(() => {
+                try {
+                    const savedData = localStorage.getItem('ipkoDashDataV1');
+                    if (savedData) {
+                        const parsedData = JSON.parse(savedData);
+                        // Data migration / validation can happen here
+                        if (!parsedData.missions) parsedData.missions = {};
+                        if (!parsedData.treasures) parsedData.treasures = [];
+                        if (!parsedData.equippedTreasures) parsedData.equippedTreasures = [];
+                        setPlayerData(parsedData);
+                    } else {
+                        const initialData = {
+                            characters: { 'char1': { level: 1 } },
+                            pets: { 'pet1': { level: 1 }, 'pet2': { level: 1 }, 'pet3': { level: 1 }, 'pet7': {level: 1} }, // Add new pet for starters
+                            currency: 1000,
+                            highScore: 0,
+                            missions: {},
+                            treasures: [],
+                            equippedTreasures: [],
+                            treasureChests: 1,
+                        };
+                        setPlayerData(initialData);
+                    }
+                } catch (error) { console.error("Failed to load player data:", error); }
+            }, []);
+
+            useEffect(() => {
+                if (playerData) {
+                    try {
+                        localStorage.setItem('ipkoDashDataV1', JSON.stringify(playerData));
+                    } catch (error) { console.error("Failed to save player data:", error); }
+                }
+            }, [playerData]);
+            
+            const getTreasureValue = (type) => {
+                return playerData?.equippedTreasures
+                    .map(id => TREASURES[id])
+                    .filter(t => t.type === type)
+                    .reduce((sum, t) => sum + t.value, 0) || 0;
+            };
+
+            // --- Game Logic ---
+            const startGame = () => {
+                const character = CHARACTERS[selectedCharId];
+                const charLevel = playerData.characters[selectedCharId]?.level || 1;
+                let maxHealth = getCharacterStat(character, charLevel) + getTreasureValue('health_bonus');
+                if (activePartnerBonus?.type === 'max_health_bonus') maxHealth += activePartnerBonus.value;
+                
+                let baseSpeed = INITIAL_GAME_SPEED * (1 + getTreasureValue('speed_boost'));
+                if (character.skill === 'high_speed') baseSpeed *= 1.2;
+
+                playerStateRef.current = {
+                    pos: { x: PLAYER_X_POSITION, y: WORLD_HEIGHT - GROUND_HEIGHT - PLAYER_RUN_SIZE.y },
+                    size: PLAYER_RUN_SIZE, vy: 0, health: maxHealth, maxHealth: maxHealth,
+                    isJumping: false, jumpCount: 0, isSliding: false, hasShield: false, isGiant: false, isBlasting: false, hasMagnet: false, activeEffects: {}
+                };
+
+                if (character.skill === 'start_magnet') {
+                    playerStateRef.current.activeEffects['magnet'] = 5; // 5 seconds magnet at start
+                }
+
+                gameObjectsRef.current = [];
+                nextSpawnDistanceRef.current = 0;
+                petSkillTimerRef.current = { health_potion: 0, shield_item: 0 };
+                inGameStatsRef.current = { jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0 };
+                reviveUsedRef.current = false;
+                comboRef.current = { count: 0, timer: 0 };
+
+                setGameState({ status: 'playing', score: 0, distance: 0, gameSpeed: baseSpeed, isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0 });
+            };
+
+            const updateMissions = (stats) => {
+                setPlayerData(prev => {
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    let changed = false;
+                    MISSIONS.forEach(mission => {
+                        const missionProgress = newData.missions[mission.id] || { progress: 0, completed: false };
+                        if (missionProgress.completed) return;
+
+                        let progressToAdd = 0;
+                        switch(mission.type) {
+                            case 'collect_jellies': progressToAdd = stats.jellies; break;
+                            case 'run_distance': progressToAdd = stats.distance; break;
+                            case 'destroy_obstacles': progressToAdd = stats.obstaclesDestroyed; break;
+                            case 'jump_count': progressToAdd = stats.jumps; break;
+                            case 'fever_count': progressToAdd = stats.fevers; break;
+                            case 'use_items': progressToAdd = stats.itemsUsed; break;
+                            case 'single_run_score':
+                                if(stats.currentRunScore > missionProgress.progress) {
+                                    missionProgress.progress = stats.currentRunScore;
+                                }
+                                break;
+                            case 'total_score': progressToAdd = stats.currentRunScore; break;
+                        }
+                        
+                        if(progressToAdd > 0) missionProgress.progress += progressToAdd;
+
+                        if (missionProgress.progress >= mission.target) {
+                            missionProgress.completed = true;
+                            // Reward will be claimed from menu
+                        }
+                        newData.missions[mission.id] = missionProgress;
+                        changed = true;
+                    });
+                    return changed ? newData : prev;
+                });
+            };
+
+            const triggerGameOver = () => {
+                updateMissions(inGameStatsRef.current);
+                
+                setPlayerData(prev => {
+                    if (!prev) return null;
+                    const newHighScore = Math.max(prev.highScore, gameState.score);
+                    let petBonus = PETS[selectedPetId].skill === 'currency_boost' ? (1 + getPetStat(PETS[selectedPetId], prev.pets[selectedPetId]?.level || 1, false) / 100) : 1;
+                    if(activePartnerBonus?.type === 'currency_bonus_final') petBonus += activePartnerBonus.value;
+                    const earnedCurrency = Math.floor(gameState.score / 10 * petBonus);
+                    return { ...prev, highScore: newHighScore, currency: Math.floor(prev.currency + earnedCurrency) };
+                });
+                setGameState(prev => ({ ...prev, status: 'gameOver' }));
+            };
+
+            const startLastDash = () => {
+                const pet = PETS[selectedPetId];
+                if (pet.skill === 'revive' && !reviveUsedRef.current) {
+                    reviveUsedRef.current = true;
+                    let reviveHealth = 0.25;
+                    if(activePartnerBonus?.type === 'revive_health_bonus') reviveHealth = activePartnerBonus.value;
+                    playerStateRef.current.health = playerStateRef.current.maxHealth * reviveHealth;
+                    return; // Don't end game, continue playing
+                }
+                
+                if (!gameState.isLastDash) {
+                    let duration = LAST_DASH_DURATION;
+                    if(CHARACTERS[selectedCharId].skill === 'last_dash_boost') duration *= 1.5;
+                    setGameState(prev => ({...prev, isLastDash: true, lastDashTimeLeft: duration}));
+                }
+            };
+
+            const togglePause = () => {
+                setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
+            };
+
+            // --- Object Spawning ---
+            const spawnGameObject = useCallback(() => {
+                const pattern = Math.random();
+                const newObjects = [];
+                const basePos = { x: WORLD_WIDTH + 100, y: 0 };
+                const jellySize = {x: 20, y: 20};
+                const jellyY = WORLD_HEIGHT - GROUND_HEIGHT - jellySize.y - 10;
+                
+                // Item spawning logic
+                const character = CHARACTERS[selectedCharId];
+                let itemRoll = Math.random();
+                if (character.skill === 'item_boost') itemRoll *= 0.7; // Higher chance
+
+                if(itemRoll < 0.15) { // 15% chance to spawn an item instead of a pattern
+                    const itemTypeRoll = Math.random();
+                    let itemType = 'giant_potion';
+                    let ItemIcon = GiantPotionIcon;
+                    if(itemTypeRoll < 0.25) { itemType = 'blast_jelly'; ItemIcon = BlastJellyIcon; }
+                    else if(itemTypeRoll < 0.5) { itemType = 'shield_item'; ItemIcon = ShieldItemIcon; }
+                    else if(itemTypeRoll < 0.75) { itemType = 'magnet_item'; ItemIcon = MagnetItemIcon; }
+
+                    newObjects.push({ id: Math.random(), type: itemType, pos: { x: basePos.x, y: WORLD_HEIGHT - GROUND_HEIGHT - 120 }, size: {x: 40, y: 40}, Icon: ItemIcon });
+                } else {
+                    // Regular pattern spawning
+                    if (pattern < 0.25) { // Low obstacle
+                        const size = { x: 60, y: 50 };
+                        newObjects.push({ id: Math.random(), type: 'obstacle_low', pos: { x: basePos.x, y: WORLD_HEIGHT - GROUND_HEIGHT - size.y }, size, Icon: ObstacleLowIcon });
+                    } else if (pattern < 0.4) { // High obstacle, slide under
+                        const size = { x: 80, y: 120 };
+                        newObjects.push({ id: Math.random(), type: 'obstacle_high', pos: { x: basePos.x, y: WORLD_HEIGHT - GROUND_HEIGHT - size.y }, size, Icon: ObstacleHighIcon });
+                    } else if (pattern < 0.6) { // Line of jellies with big jelly
+                        for (let i = 0; i < 8; i++) newObjects.push({ id: Math.random(), type: 'jelly', pos: { x: basePos.x + i * 40, y: jellyY }, size: jellySize, Icon: JellyIcon });
+                        newObjects.push({ id: Math.random(), type: 'big_jelly', pos: { x: basePos.x + 3.5 * 40, y: jellyY - 60 }, size: { x: 30, y: 30 }, Icon: BigJellyIcon });
+                    } else if (pattern < 0.8) { // Jump over obstacle for jellies
+                        const size = { x: 60, y: 50 };
+                        newObjects.push({ id: Math.random(), type: 'obstacle_low', pos: { x: basePos.x, y: WORLD_HEIGHT - GROUND_HEIGHT - size.y }, size, Icon: ObstacleLowIcon });
+                        for (let i = 0; i < 3; i++) newObjects.push({ id: Math.random(), type: 'jelly', pos: { x: basePos.x - 10 + i * 40, y: WORLD_HEIGHT - GROUND_HEIGHT - 120 }, size: jellySize, Icon: JellyIcon });
+                    } else { // Wavy jellies
+                        for (let i = 0; i < 8; i++) {
+                            const yOffset = Math.sin(i * 0.8) * 40;
+                            newObjects.push({ id: Math.random(), type: 'jelly', pos: { x: basePos.x + i * 50, y: jellyY + yOffset - 40 }, size: jellySize, Icon: JellyIcon });
+                        }
+                    }
+                }
+
+                gameObjectsRef.current.push(...newObjects);
+                nextSpawnDistanceRef.current = gameState.distance + Math.random() * 300 + 250;
+            }, [gameState.distance, selectedCharId]);
+
+            // --- Game Loop Callback ---
+            const gameLoop = useCallback((deltaTime) => {
+                if (gameState.isPaused) return;
+
+                const player = playerStateRef.current;
+                if (!player) return;
+
+                const character = CHARACTERS[selectedCharId];
+                let speedMultiplier = 1;
+                if (player.isBlasting) speedMultiplier = BLAST_JELLY_SPEED_MULTIPLIER;
+                else if (character.skill === 'time_slow' && player.health < player.maxHealth * 0.5) {
+                    let slowDurBonus = activePartnerBonus?.type === 'slow_duration_bonus' ? activePartnerBonus.value : 0;
+                    speedMultiplier = 0.8 * (1 - slowDurBonus);
+                }
+                
+                let newGameSpeed, actualSpeed, newDistance, newScore, newFeverGauge;
+
+                // --- Last Dash Logic ---
+                if(gameState.isLastDash) {
+                    let newLastDashTimeLeft = gameState.lastDashTimeLeft - deltaTime;
+                    if(newLastDashTimeLeft <= 0) {
+                        triggerGameOver();
+                        return;
+                    }
+                    player.health = 0; // Keep health at 0 during last dash
+                    setGameState(prev => ({...prev, lastDashTimeLeft: newLastDashTimeLeft}));
+                }
+
+                newGameSpeed = gameState.gameSpeed + GAME_SPEED_INCREASE_RATE * deltaTime;
+                actualSpeed = newGameSpeed * speedMultiplier;
+                newDistance = gameState.distance + actualSpeed * deltaTime;
+                inGameStatsRef.current.distance += actualSpeed * deltaTime / 100; // in meters for missions
+                newScore = gameState.score;
+                newFeverGauge = gameState.feverGauge;
+                
+                // Update active effects
+                Object.keys(player.activeEffects).forEach(effect => {
+                    player.activeEffects[effect] -= deltaTime;
+                    if (player.activeEffects[effect] <= 0) {
+                        delete player.activeEffects[effect];
+                        if(effect === 'giant') player.isGiant = false;
+                        if(effect === 'blast') player.isBlasting = false;
+                        if(effect === 'magnet') player.hasMagnet = false;
+                        if(effect === 'shield') player.hasShield = false;
+                    }
+                });
+
+                // --- Player Physics ---
+                player.vy -= GRAVITY * deltaTime;
+                player.pos.y -= player.vy * deltaTime;
+
+                if (player.pos.y > WORLD_HEIGHT - GROUND_HEIGHT - player.size.y) {
+                    player.pos.y = WORLD_HEIGHT - GROUND_HEIGHT - player.size.y;
+                    player.vy = 0;
+                    if(player.isJumping) inGameStatsRef.current.jumps++;
+                    player.isJumping = false;
+                    player.jumpCount = 0;
+                }
+                
+                // --- Health Decay & Combo Timer ---
+                let healthDecayMod = 1;
+                if(activePartnerBonus?.type === 'health_decay_reduction') healthDecayMod = 1 - activePartnerBonus.value;
+                if (!gameState.isFeverTime && !gameState.isLastDash) {
+                    player.health -= HEALTH_DECAY_RATE * (newGameSpeed / INITIAL_GAME_SPEED) * deltaTime * healthDecayMod;
+                }
+                
+                if (comboRef.current.count > 0) {
+                    comboRef.current.timer -= deltaTime;
+                    if (comboRef.current.timer <= 0) {
+                        comboRef.current.count = 0;
+                    }
+                }
+
+                let newFeverTimeLeft = gameState.feverTimeLeft;
+                if (gameState.isFeverTime) {
+                    newFeverTimeLeft -= deltaTime;
+                    if (newFeverTimeLeft <= 0) {
+                        setGameState(prev => ({...prev, isFeverTime: false}));
+                        newFeverTimeLeft = 0;
+                    }
+                }
+
+                // --- Pet Skills ---
+                const pet = PETS[selectedPetId];
+                const petLevel = playerData.pets[selectedPetId]?.level || 1;
+                const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
+                const petStat = getPetStat(pet, petLevel, isSynergy);
+                let cooldownReduction = activePartnerBonus?.type === 'pet_cooldown_reduction' ? 1 - activePartnerBonus.value : 1;
+
+                if (pet.skill === 'health_potion' || pet.skill === 'shield_item') {
+                    petSkillTimerRef.current[pet.skill] += deltaTime;
+                    if (petSkillTimerRef.current[pet.skill] >= (petStat * cooldownReduction)) {
+                        petSkillTimerRef.current[pet.skill] = 0;
+                        const type = pet.skill === 'health_potion' ? 'health_potion_item' : 'shield_item';
+                        const Icon = pet.skill === 'health_potion' ? HealthPotionIcon : ShieldItemIcon;
+                        gameObjectsRef.current.push({ id: Math.random(), type, pos: { x: WORLD_WIDTH + 50, y: WORLD_HEIGHT - GROUND_HEIGHT - 100 }, size: { x: 30, y: 30 }, Icon });
+                    }
+                }
+
+                // --- Update Game Objects, Magnetism & Collisions ---
+                const playerRect = { x: player.pos.x, y: player.pos.y, width: player.size.x, height: player.size.y };
+                const playerCenter = { x: player.pos.x + player.size.x / 2, y: player.pos.y + player.size.y / 2 };
+                
+                gameObjectsRef.current = gameObjectsRef.current.filter(obj => {
+                    // Magnetism
+                    if (player.activeEffects['magnet'] > 0 && (obj.type === 'jelly' || obj.type === 'big_jelly')) {
+                        const dist = Math.sqrt(Math.pow(obj.pos.x - playerCenter.x, 2) + Math.pow(obj.pos.y - playerCenter.y, 2));
+                        if (dist < MAGNET_RADIUS) {
+                            obj.pos.x -= (obj.pos.x - playerCenter.x) * 0.1;
+                            obj.pos.y -= (obj.pos.y - playerCenter.y) * 0.1;
+                        }
+                    }
+
+                    obj.pos.x -= actualSpeed * deltaTime;
+                    if (obj.pos.x < -obj.size.x) return false;
+
+                    const objRect = { x: obj.pos.x, y: obj.pos.y, width: obj.size.x, height: obj.size.y };
+                    if (playerRect.x < objRect.x + objRect.width &&
+                        playerRect.x + playerRect.width > objRect.x &&
+                        playerRect.y < objRect.y + objRect.height &&
+                        playerRect.y + playerRect.height > objRect.y) {
+                        
+                        const handleJellyCollision = (isBig) => {
+                            inGameStatsRef.current.jellies++;
+                            comboRef.current.count++;
+                            comboRef.current.timer = COMBO_DURATION;
+                            
+                            const petScoreBonus = (PETS[selectedPetId].skill === 'score_bonus') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0;
+                            const treasureScoreBonus = 1 + getTreasureValue('score_bonus');
+                            const jellyScoreBonus = activePartnerBonus?.type === 'jelly_score_bonus' ? 1 + activePartnerBonus.value : 1;
+                            const comboBonus = activePartnerBonus?.type === 'combo_score_bonus' ? 1 + activePartnerBonus.value : 1;
+                            
+                            const baseJellyScore = isBig ? 50 : 10;
+                            newScore += Math.floor((baseJellyScore + petScoreBonus + (comboRef.current.count * comboBonus)) * treasureScoreBonus * jellyScoreBonus);
+
+                            if (!gameState.isFeverTime) {
+                                const petFeverBonus = (PETS[selectedPetId].skill === 'fever_boost') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0;
+                                newFeverGauge = Math.min(FEVER_GAUGE_MAX, newFeverGauge + FEVER_GAUGE_PER_JELLY + petFeverBonus);
+                            }
+                            return false; // Remove object
+                        };
+                        
+                        const handleItemCollision = (itemType) => {
+                            inGameStatsRef.current.itemsUsed++;
+                            let durationMultiplier = 1;
+                            if(PETS[selectedPetId].skill === 'item_duration_boost') durationMultiplier += PETS[selectedPetId].baseStat;
+                            if(activePartnerBonus?.type === 'all_item_duration_bonus') durationMultiplier += activePartnerBonus.value;
+
+                            switch(itemType) {
+                                case 'health_potion_item': player.health = Math.min(player.maxHealth, player.health + 20); break;
+                                case 'giant_potion':
+                                    player.isGiant = true;
+                                    player.activeEffects['giant'] = GIANT_POTION_DURATION * (1 + getTreasureValue('giant_duration')) * durationMultiplier;
+                                    break;
+                                case 'blast_jelly':
+                                    player.isBlasting = true;
+                                    player.activeEffects['blast'] = BLAST_JELLY_DURATION * durationMultiplier;
+                                    break;
+                                case 'shield_item':
+                                    player.hasShield = true;
+                                    player.activeEffects['shield'] = SHIELD_ITEM_DURATION * (1 + getTreasureValue('shield_duration')) * durationMultiplier;
+                                    break;
+                                case 'magnet_item':
+                                    player.hasMagnet = true;
+                                    let magnetBonus = activePartnerBonus?.type === 'magnet_duration_bonus' ? 1 + activePartnerBonus.value : 1;
+                                    player.activeEffects['magnet'] = MAGNET_ITEM_DURATION * (1 + getTreasureValue('magnet_duration')) * durationMultiplier * magnetBonus;
+                                    break;
+                            }
+                            return false;
+                        };
+
+                        if (obj.type.endsWith('_item') || obj.type.endsWith('_potion') || obj.type === 'blast_jelly') return handleItemCollision(obj.type);
+                        if (obj.type === 'jelly') return handleJellyCollision(false);
+                        if (obj.type === 'big_jelly') return handleJellyCollision(true);
+                        
+                        if (obj.type.startsWith('obstacle')) {
+                            if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash) {
+                                inGameStatsRef.current.obstaclesDestroyed++;
+                                newScore += FEVER_OBSTACLE_SCORE;
+                                return false;
+                            }
+                            if(player.hasShield) {
+                                player.hasShield = false;
+                                delete player.activeEffects['shield'];
+                                return false; // Shield breaks, obstacle removed
+                            }
+                             if(pet.skill === 'damage_negation') {
+                                if(Math.random() * 100 < getPetStat(pet, petLevel, isSynergy)) {
+                                    return false; // Damage negated!
+                                }
+                            }
+                            player.health -= OBSTACLE_DAMAGE;
+                            comboRef.current.count = 0;
+                            setHitFlash(true);
+                            setTimeout(() => setHitFlash(false), 150);
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+                
+                inGameStatsRef.current.currentRunScore = newScore;
+                
+                let isFeverNow = gameState.isFeverTime;
+                if (!isFeverNow && newFeverGauge >= FEVER_GAUGE_MAX) {
+                    isFeverNow = true;
+                    inGameStatsRef.current.fevers++;
+                    let feverDurBonus = activePartnerBonus?.type === 'fever_duration_bonus' ? 1 + activePartnerBonus.value : 1;
+                    newFeverTimeLeft = FEVER_DURATION * (1 + getTreasureValue('fever_duration')) * feverDurBonus;
+                    newFeverGauge = 0;
+                }
+
+                if (newDistance > nextSpawnDistanceRef.current) spawnGameObject();
+                if (player.health <= 0 && !gameState.isLastDash) { 
+                    startLastDash();
+                }
+
+                setGameState(prev => ({ ...prev, score: Math.floor(newScore), distance: newDistance, gameSpeed: newGameSpeed, isFeverTime: isFeverNow, feverGauge: newFeverGauge, feverTimeLeft: newFeverTimeLeft }));
+                forceUpdate({});
+
+            }, [gameState, playerData, selectedCharId, selectedPetId, spawnGameObject, activePartnerBonus]);
+
+            useGameLoop(gameLoop, gameState.status === 'playing' && !gameState.isPaused);
+
+            // --- Input Handlers ---
+            const handleJump = useCallback(() => {
+                const player = playerStateRef.current;
+                if (!player || player.jumpCount >= 2 || player.isSliding) return;
+                player.vy = PLAYER_JUMP_FORCE * (1 + getTreasureValue('jump_boost'));
+                player.isJumping = true;
+                player.jumpCount++;
+            }, []);
+
+            const handleJumpRelease = useCallback(() => {
+                const player = playerStateRef.current;
+                if (!player || player.vy <= 0) return;
+                player.vy *= 0.5;
+            }, []);
+            
+            const handleSlide = useCallback((isSliding) => {
+                const player = playerStateRef.current;
+                if (!player || player.isJumping) return;
+                player.isSliding = isSliding;
+                const newSize = isSliding ? PLAYER_SLIDE_SIZE : PLAYER_RUN_SIZE;
+                const oldY = player.pos.y + player.size.y;
+                player.size = newSize;
+                player.pos.y = oldY - newSize.y;
+            }, []);
+
+            useEffect(() => {
+                const onKeyDown = (e) => {
+                    if (gameState.status !== 'playing' || e.repeat) return;
+                    if(e.code === 'Escape') togglePause();
+                    if(gameState.isPaused) return;
+                    if (e.code === 'Space' || e.code === 'ArrowUp') handleJump();
+                    if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(true);
+                };
+                const onKeyUp = (e) => {
+                    if (gameState.status !== 'playing' || gameState.isPaused) return;
+                    if (e.code === 'Space' || e.code === 'ArrowUp') handleJumpRelease();
+                    if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(false);
+                };
+                window.addEventListener('keydown', onKeyDown);
+                window.addEventListener('keyup', onKeyUp);
+                return () => {
+                    window.removeEventListener('keydown', onKeyDown);
+                    window.removeEventListener('keyup', onKeyUp);
+                };
+            }, [gameState.status, gameState.isPaused, handleJump, handleSlide, handleJumpRelease]);
+
+            // --- Menu Handlers ---
+            const costReduction = getTreasureValue('cost_reduction');
+            const handleLevelUp = (type, id) => {
+                setPlayerData(prev => {
+                    if (!prev) return null;
+                    const isChar = type === 'character';
+                    const data = isChar ? prev.characters[id] : prev.pets[id];
+                    const meta = isChar ? CHARACTERS[id] : PETS[id];
+                    if (data.level >= meta.maxLevel) return prev;
+                    const cost = LEVEL_UP_COST(data.level, costReduction);
+                    if (prev.currency < cost) return prev;
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    newData.currency -= cost;
+                    (isChar ? newData.characters[id] : newData.pets[id]).level++;
+                    return newData;
+                });
+            };
+
+            const handleUnlockCharacter = (charId) => {
+                setPlayerData(prev => {
+                    const character = CHARACTERS[charId];
+                    if (!prev || !character.unlockCost || prev.currency < character.unlockCost || prev.characters[charId]) return prev;
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    newData.currency -= character.unlockCost;
+                    newData.characters[charId] = { level: 1 };
+                    return newData;
+                });
+            };
+
+            const handleClaimMissionReward = (missionId) => {
+                 setPlayerData(prev => {
+                    const mission = MISSIONS.find(m => m.id === missionId);
+                    const missionProgress = prev.missions[missionId];
+                    if(!mission || !missionProgress || !missionProgress.completed || missionProgress.claimed) return prev;
+                    
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    newData.currency += mission.reward.currency;
+                    newData.treasureChests = (newData.treasureChests || 0) + mission.reward.treasureChests;
+                    newData.missions[missionId].claimed = true;
+                    return newData;
+                 });
+            };
+            
+            const handleOpenTreasureChest = () => {
+                setPlayerData(prev => {
+                    if(!prev || (prev.treasureChests || 0) < 1) return prev;
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    newData.treasureChests--;
+                    
+                    const unownedTreasures = Object.keys(TREASURES).filter(id => !newData.treasures.includes(id));
+                    if(unownedTreasures.length > 0) {
+                        const newTreasureId = unownedTreasures[Math.floor(Math.random() * unownedTreasures.length)];
+                        newData.treasures.push(newTreasureId);
+                    } else {
+                        // All treasures owned, give currency instead
+                        newData.currency += 500;
+                    }
+                    return newData;
+                });
+            };
+
+            const handleToggleEquipTreasure = (treasureId) => {
+                setPlayerData(prev => {
+                    const newData = JSON.parse(JSON.stringify(prev));
+                    const equipped = new Set(newData.equippedTreasures || []);
+                    if(equipped.has(treasureId)) {
+                        equipped.delete(treasureId);
+                    } else {
+                        if(equipped.size < 3) {
+                           equipped.add(treasureId);
+                        }
+                    }
+                    newData.equippedTreasures = Array.from(equipped);
+                    return newData;
+                });
+            }
+
+            // --- Render Functions ---
+            if (!playerData) {
+                return React.createElement('div', { className: "w-screen h-screen flex items-center justify-center text-white glowing-text" }, "Loading...");
+            }
+            
+            const renderMenu = () => {
+                const costReduction = getTreasureValue('cost_reduction');
+                const renderTabs = () => React.createElement('div', { className: "flex border-b-2 border-gray-700 mb-4" },
+                    React.createElement('button', { onClick: () => setActiveTab('character'), className: `tab-button ${activeTab === 'character' ? 'active' : ''}` }, '캐릭터'),
+                    React.createElement('button', { onClick: () => setActiveTab('pet'), className: `tab-button ${activeTab === 'pet' ? 'active' : ''}` }, '펫'),
+                    React.createElement('button', { onClick: () => setActiveTab('mission'), className: `tab-button ${activeTab === 'mission' ? 'active' : ''}` }, '미션'),
+                    React.createElement('button', { onClick: () => setActiveTab('treasure'), className: `tab-button ${activeTab === 'treasure' ? 'active' : ''}` }, '보물')
+                );
+                
+                const PartnerBonusDisplay = () => {
+                    if (!activePartnerBonus) return null;
+                    return React.createElement('div', { className: "partner-bonus p-2 rounded-lg mt-2 text-center" },
+                        React.createElement('p', { className: "font-bold text-yellow-300" }, `✨ 짝꿍 효과: ${activePartnerBonus.name} ✨`),
+                        React.createElement('p', { className: "text-sm text-yellow-200" }, activePartnerBonus.description)
+                    );
+                };
+
+                const renderCharacterTab = () => {
+                    const character = CHARACTERS[selectedCharId];
+                    const charLevel = playerData.characters[selectedCharId]?.level || 1;
+                    return React.createElement(React.Fragment, null,
+                        React.createElement('div', { className: "grid grid-cols-4 gap-2" }, Object.values(CHARACTERS).map(c => {
+                            const isUnlocked = !!playerData.characters[c.id];
+                            if (isUnlocked) {
+                                return React.createElement('div', { key: c.id, onClick: () => setSelectedCharId(c.id), className: `selection-card p-2 text-center ${selectedCharId === c.id ? 'selected' : ''}` },
+                                    React.createElement(c.Icon, { className: "w-12 h-12 md:w-16 md:h-16 mx-auto" }),
+                                    React.createElement('p', { className: "font-bold mt-1 text-xs md:text-sm" }, c.name),
+                                    React.createElement('p', { className: "text-xs" }, `Lv. ${playerData.characters[c.id]?.level || 1}`)
+                                );
+                            }
+                            const canAfford = c.unlockCost && playerData.currency >= c.unlockCost;
+                            return React.createElement('div', { key: c.id, className: "selection-card p-2 text-center opacity-70 relative" },
+                                React.createElement('div', { className: "absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center" }, React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6 md:h-8 md:w-8 text-white", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" }))),
+                                React.createElement(c.Icon, { className: "w-12 h-12 md:w-16 md:h-16 mx-auto" }),
+                                React.createElement('p', { className: "font-bold mt-1 text-xs md:text-sm" }, c.name),
+                                React.createElement('button', { onClick: () => handleUnlockCharacter(c.id), disabled: !canAfford, className: "w-full mt-1 ui-button text-xs py-1" }, `${c.unlockCost} 젤리`)
+                            );
+                        })),
+                        playerData.characters[selectedCharId] && React.createElement('div', { className: "bg-black/30 p-4 rounded-lg mt-2" },
+                            React.createElement('p', { className: "font-bold text-lg" }, `${character.name} Lv.${charLevel}`),
+                            React.createElement('p', { className: "text-sm text-gray-300 mb-2" }, character.description),
+                            React.createElement('p', null, "체력: ", React.createElement('span', { className: "font-bold text-green-400" }, getCharacterStat(character, charLevel))),
+                            React.createElement('button', { onClick: () => handleLevelUp('character', selectedCharId), disabled: playerData.currency < LEVEL_UP_COST(charLevel, costReduction) || charLevel >= character.maxLevel, className: "w-full mt-2 ui-button text-sm" }, charLevel >= character.maxLevel ? 'MAX LEVEL' : `LEVEL UP (${LEVEL_UP_COST(charLevel, costReduction)} 젤리)`)
+                        )
+                    );
+                };
+
+                const renderPetTab = () => {
+                    const pet = PETS[selectedPetId];
+                    const petLevel = playerData.pets[selectedPetId]?.level || 1;
+                    const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
+                    const getPetSkillDescription = (pet, stat) => {
+                        switch(pet.skill) {
+                            case 'health_potion': return `${(stat * (activePartnerBonus?.type === 'pet_cooldown_reduction' ? 1 - activePartnerBonus.value : 1)).toFixed(1)}초마다 포션`;
+                            case 'score_bonus': return `젤리당 +${stat.toFixed(1)}점`;
+                            case 'shield_item': return `${(stat * (activePartnerBonus?.type === 'pet_cooldown_reduction' ? 1 - activePartnerBonus.value : 1)).toFixed(1)}초마다 보호막`;
+                            case 'fever_boost': return `피버 게이지 +${stat.toFixed(1)}`;
+                            case 'revive': return `1회 부활`;
+                            case 'currency_boost': return `젤리 +${stat.toFixed(1)}%`;
+                            case 'damage_negation': return `${stat.toFixed(1)}% 피해 무시`;
+                            case 'item_duration_boost': return `아이템 시간 +${pet.baseStat*100}%`;
+                            default: return '';
+                        }
+                    };
+                    return React.createElement(React.Fragment, null,
+                         React.createElement('div', { className: "grid grid-cols-4 gap-2" }, Object.values(PETS).map(p => 
+                            React.createElement('div', { key: p.id, onClick: () => setSelectedPetId(p.id), className: `selection-card p-2 text-center ${selectedPetId === p.id ? 'selected' : ''}` },
+                               React.createElement(p.Icon, { className: "w-12 h-12 md:w-16 md:h-16 mx-auto" }),
+                               React.createElement('p', { className: "font-bold mt-1 text-xs md:text-sm" }, p.name),
+                               React.createElement('p', { className: "text-xs" }, `Lv. ${playerData.pets[p.id]?.level || 1}`)
+                            )
+                        )),
+                        React.createElement('div', { className: "bg-black/30 p-4 rounded-lg mt-2" },
+                            React.createElement('p', { className: "font-bold text-lg" }, `${pet.name} Lv.${petLevel}`),
+                             isSynergy && React.createElement('p', {className: "text-sm text-cyan-300 font-bold"}, "시너지 효과 발동! (능력치 +20%)"),
+                            React.createElement('p', { className: "text-sm text-gray-300 mb-2" }, pet.description),
+                            React.createElement('p', null, "능력: ", React.createElement('span', { className: "font-bold text-green-400" }, getPetSkillDescription(pet, getPetStat(pet, petLevel, isSynergy)))),
+                            React.createElement('button', { onClick: () => handleLevelUp('pet', selectedPetId), disabled: pet.maxLevel === 1 || playerData.currency < LEVEL_UP_COST(petLevel, costReduction) || petLevel >= pet.maxLevel, className: "w-full mt-2 ui-button text-sm" }, petLevel >= pet.maxLevel ? 'MAX LEVEL' : `LEVEL UP (${LEVEL_UP_COST(petLevel, costReduction)} 젤리)`)
+                        )
+                    );
+                };
+
+                const renderMissionTab = () => React.createElement('div', { className: "bg-black/30 p-4 rounded-lg flex flex-col gap-2 h-64 overflow-y-auto" },
+                    MISSIONS.map(mission => {
+                        const progress = playerData.missions[mission.id] || { progress: 0, completed: false };
+                        const isComplete = progress.completed;
+                        const canClaim = isComplete && !progress.claimed;
+                        return React.createElement('div', { key: mission.id, className: `p-2 rounded ${isComplete ? 'bg-green-500/20' : 'bg-gray-700/30'}` },
+                            React.createElement('p', { className: "font-bold" }, mission.description),
+                            React.createElement('div', { className: "w-full bg-gray-600 rounded-full h-2.5 mt-1" }, React.createElement('div', { className: "bg-cyan-400 h-2.5 rounded-full", style: { width: `${Math.min(100, (progress.progress / mission.target) * 100)}%` } })),
+                            React.createElement('div', { className: "flex justify-between items-center mt-1" },
+                                React.createElement('p', { className: "text-xs text-gray-400" }, `${Math.floor(progress.progress)} / ${mission.target}`),
+                                canClaim ? React.createElement('button', { onClick: () => handleClaimMissionReward(mission.id), className: "ui-button text-xs py-1" }, '보상 받기') :
+                                isComplete ? React.createElement('span', { className: "text-xs text-green-400" }, '완료') : null
+                            )
+                        );
+                    })
+                );
+
+                const renderTreasureTab = () => React.createElement('div', { className: "bg-black/30 p-4 rounded-lg" },
+                    React.createElement('div', {className: "text-center mb-4"}, 
+                        React.createElement('p', {className: "text-lg font-bold"}, "보물 상자"),
+                        React.createElement('p', {className: "text-2xl font-bold text-yellow-300"}, `x ${playerData.treasureChests || 0}`),
+                        React.createElement('button', { onClick: handleOpenTreasureChest, disabled: (playerData.treasureChests || 0) < 1, className: "ui-button mt-2" }, "상자 열기")
+                    ),
+                    React.createElement('div', { className: "grid grid-cols-2 md:grid-cols-3 gap-2 h-40 overflow-y-auto" },
+                        playerData.treasures.map(id => {
+                            const treasure = TREASURES[id];
+                            const isEquipped = playerData.equippedTreasures.includes(id);
+                            return React.createElement('div', { key: id, onClick: () => handleToggleEquipTreasure(id), className: `treasure-card p-2 text-center cursor-pointer ${isEquipped ? 'equipped' : ''}` },
+                                React.createElement('p', { className: "font-bold text-sm" }, treasure.name),
+                                React.createElement('p', { className: "text-xs text-gray-400" }, treasure.description)
+                            );
+                        })
+                    )
+                );
+                
+
+                return React.createElement('div', { className: "w-full h-full p-2 md:p-8 flex flex-col items-center justify-center text-white fade-in" },
+                    React.createElement('h1', { className: "text-4xl md:text-6xl font-black glowing-text mb-2" }, "잎코대쉬"),
+                    React.createElement('h2', { className: "text-xl md:text-3xl font-bold text-yellow-300 mb-4" }, `High Score: ${playerData.highScore}`),
+                    React.createElement('div', { className: "w-full max-w-md md:max-w-2xl flex flex-col items-center mb-4" },
+                        renderTabs(),
+                        React.createElement(PartnerBonusDisplay, null),
+                        React.createElement('div', { className: "w-full" },
+                            activeTab === 'character' && renderCharacterTab(),
+                            activeTab === 'pet' && renderPetTab(),
+                            activeTab === 'mission' && renderMissionTab(),
+                            activeTab === 'treasure' && renderTreasureTab()
+                        )
+                    ),
+                    React.createElement('div', { className: "flex items-center gap-2 mb-4" }, React.createElement(JellyIcon, null), React.createElement('span', { className: "text-2xl font-bold text-yellow-300" }, playerData.currency)),
+                    React.createElement('button', { onClick: startGame, className: "px-8 py-3 md:px-12 md:py-4 text-2xl md:text-3xl font-black ui-button" }, "GAME START")
+                );
+            };
+            
+            const renderGame = () => {
+                const player = playerStateRef.current;
+                if (!player) return null;
+                const CurrentCharacterIcon = CHARACTERS[selectedCharId].Icon;
+
+                let playerClass = 'player-running';
+                if(player.isGiant) playerClass = 'player-giant';
+                else if (player.isJumping) playerClass = player.vy > 0 ? 'player-jumping' : 'player-falling';
+                
+                let playerTransform = '';
+                if(player.isBlasting) playerTransform = `translateX(${Math.random()*10 - 5}px)`;
+
+                return React.createElement('div', { className: "relative w-full h-full overflow-hidden" },
+                    hitFlash && React.createElement('div', { className: "hit-flash-overlay" }),
+                    gameState.isLastDash && React.createElement('div', { className: "last-dash-overlay" }),
+                    gameState.isFeverTime && React.createElement('div', { className: "fever-active-overlay" }),
+                    React.createElement('div', { className: "absolute top-0 left-0", style: { width: WORLD_WIDTH, height: WORLD_HEIGHT } },
+                        React.createElement('div', { className: `absolute ${playerClass}`, style: { left: player.pos.x, top: player.pos.y, width: player.size.x, height: player.size.y, transform: playerTransform, transition: 'width 0.1s, height 0.1s' } },
+                           React.createElement(CurrentCharacterIcon, null),
+                           player.hasShield && React.createElement('div', { className: 'shield-effect' })
+                        ),
+                        gameObjectsRef.current.map(obj => React.createElement('div', { key: obj.id, className: "absolute", style: { left: obj.pos.x, top: obj.pos.y, width: obj.size.x, height: obj.size.y } }, React.createElement(obj.Icon, null))),
+                        React.createElement('div', { className: "absolute bottom-0 left-0 w-full bg-cyan-800", style: { height: GROUND_HEIGHT, boxShadow: '0 -10px 20px rgba(0, 255, 255, 0.5)' } })
+                    ),
+                    React.createElement('div', { className: "absolute top-4 left-4 right-4 text-white font-bold" },
+                        React.createElement('div', { className: "flex justify-between text-2xl" },
+                            React.createElement('span', null, `SCORE: ${gameState.score}`),
+                            React.createElement('span', null, `DISTANCE: ${Math.floor(gameState.distance / 100)}m`)
+                        ),
+                        React.createElement('div', { className: "progress-bar-container mt-2" }, React.createElement('div', { className: "h-4 progress-bar health-bar", style: { width: `${(player.health / player.maxHealth) * 100}%` } })),
+                        React.createElement('div', { className: "progress-bar-container mt-1" }, React.createElement('div', { className: "h-3 progress-bar fever-bar", style: { width: `${(gameState.feverGauge / FEVER_GAUGE_MAX) * 100}%` } })),
+                        comboRef.current.count > 2 && React.createElement('div', { key: comboRef.current.count, className: "absolute top-24 left-1/2 -translate-x-1/2 text-4xl font-black text-yellow-300 combo-counter", style: {textShadow: '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000'} }, `${comboRef.current.count} COMBO`),
+                        React.createElement('button', {onClick: togglePause, className: "absolute top-0 right-0 p-2 text-xl"}, "❚❚")
+                    ),
+                    React.createElement('div', { className: "control-button left-5", onMouseDown: handleJump, onMouseUp: handleJumpRelease, onTouchStart: (e) => { e.preventDefault(); handleJump(); }, onTouchEnd: (e) => { e.preventDefault(); handleJumpRelease(); } }, React.createElement('span', { className: "font-bold text-2xl text-white" }, "JUMP")),
+                    React.createElement('div', { className: "control-button right-5", onMouseDown: () => handleSlide(true), onMouseUp: () => handleSlide(false), onTouchStart: (e) => { e.preventDefault(); handleSlide(true); }, onTouchEnd: (e) => { e.preventDefault(); handleSlide(false); } }, React.createElement('span', { className: "font-bold text-2xl text-white" }, "SLIDE"))
+                );
+            };
+
+            const renderGameOver = () => React.createElement('div', { className: "absolute inset-0 z-50 bg-black/70 flex items-center justify-center p-4" },
+                React.createElement('div', { className: "bg-slate-800 border-2 border-cyan-400 rounded-2xl p-8 text-center shadow-lg shadow-cyan-500/20 fade-in" },
+                    React.createElement('h2', { className: "text-5xl font-black text-red-500 glowing-text" }, "GAME OVER"),
+                    React.createElement('p', { className: "mt-4 text-2xl" }, "Final Score: ", React.createElement('span', { className: "text-cyan-300 font-bold" }, gameState.score)),
+                    React.createElement('p', { className: "mt-2 text-xl" }, "High Score: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, playerData.highScore)),
+                    React.createElement('p', { className: "mt-2 text-xl" }, "Earned Jellies: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, `+${Math.floor(gameState.score / 10)}`)),
+                    React.createElement('button', { onClick: () => setGameState(prev => ({ ...prev, status: 'menu' })), className: "mt-8 px-8 py-3 ui-button" }, "메인 메뉴")
+                )
+            );
+
+            const renderPauseMenu = () => React.createElement('div', { className: "absolute inset-0 z-50 bg-black/70 flex items-center justify-center p-4" },
+                React.createElement('div', { className: "bg-slate-800 border-2 border-cyan-400 rounded-2xl p-8 text-center shadow-lg shadow-cyan-500/20 fade-in flex flex-col gap-4" },
+                    React.createElement('h2', { className: "text-5xl font-black text-white glowing-text" }, "PAUSED"),
+                    React.createElement('button', { onClick: togglePause, className: "px-8 py-3 ui-button" }, "게임 재개"),
+                    React.createElement('button', { onClick: () => setGameState(prev => ({ ...prev, status: 'menu' })), className: "px-8 py-3 ui-button" }, "메인 메뉴")
+                )
+            );
+            
+            return React.createElement('div', { className: "relative w-screen h-screen bg-black text-white flex items-center justify-center overflow-hidden font-sans antialiased select-none" },
+                React.createElement('div', { className: "scrolling-background" }),
+                 React.createElement('div', { className: "relative overflow-hidden bg-black/20", style: { width: WORLD_WIDTH, height: WORLD_HEIGHT } },
+                    gameState.status === 'menu' && renderMenu(),
+                    (gameState.status === 'playing' || gameState.status === 'gameOver') && renderGame(),
+                    gameState.status === 'gameOver' && renderGameOver(),
+                    gameState.isPaused && renderPauseMenu()
+                )
+            );
+        };
+
+        // --- END OF MERGED App.tsx ---
+
+        const rootElement = document.getElementById('root');
+        if (!rootElement) {
+          throw new Error("Could not find root element to mount to");
+        }
+
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(React.createElement(React.StrictMode, null, React.createElement(App, null)));
+    </script>
+  </body>
+</html>
