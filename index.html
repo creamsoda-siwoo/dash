@@ -80,7 +80,6 @@
       /* Boss Animations */
       @keyframes boss-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
       @keyframes boss-enter { from { transform: translateX(200%); } to { transform: translateX(0); } }
-      @keyframes raid-boss-idle { 0%, 100% { transform: scale(1) translateY(0); } 50% { transform: scale(1.02) translateY(-10px); } }
       
       /* Gacha Animations */
       @keyframes box-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
@@ -92,16 +91,20 @@
       .hit-flash-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: red; pointer-events: none; opacity: 0; animation: hit-flash-anim 0.2s ease-out; z-index: 100; }
       @keyframes last-dash-anim { 0%, 100% { box-shadow: inset 0 0 50px 20px rgba(255, 0, 0, 0.4); } 50% { box-shadow: inset 0 0 80px 30px rgba(255, 0, 0, 0.7); } }
       .last-dash-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; animation: last-dash-anim 0.5s ease-in-out infinite; z-index: 90; }
-      @keyframes fever-glow { 0% { box-shadow: 0 0 20px 10px rgba(255, 235, 59, 0); } 50% { box-shadow: 0 0 40px 20px rgba(255, 235, 59, 0.4); } 100% { box-shadow: 0 0 20px 10px rgba(255, 235, 59, 0); } }
+      @keyframes fever-glow {
+        0%, 100% {
+          background: radial-gradient(circle, rgba(255, 235, 59, 0.2) 0%, rgba(255, 235, 59, 0) 70%);
+          box-shadow: 0 0 20px 10px rgba(255, 235, 59, 0);
+        }
+        50% {
+          background: radial-gradient(circle, rgba(255, 235, 59, 0.4) 0%, rgba(255, 235, 59, 0) 70%);
+          box-shadow: 0 0 40px 20px rgba(255, 235, 59, 0.4);
+        }
+      }
       .fever-active-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; animation: fever-glow 1s ease-in-out infinite; z-index: 10; }
       .shield-effect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 120%; height: 120%; border: 4px solid #0ff; border-radius: 50%; box-shadow: 0 0 15px #0ff; opacity: 0.7; animation: glow 1.5s ease-in-out infinite alternate; }
       .shadow-form-effect { box-shadow: inset 0 0 20px 10px rgba(72, 61, 139, 0.8); filter: brightness(0.8) drop-shadow(0 0 10px #483d8b); }
       .obstacle-highlight { box-shadow: 0 0 20px 10px #ffdead; border: 2px solid #ffdead; border-radius: inherit; }
-      .paladin-aura-effect {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 150%; height: 150%;
-        border-radius: 50%; background: radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0) 70%);
-        animation: glow 1s ease-in-out infinite alternate;
-      }
       
       /* New Mobile UI Elements */
       .ui-button {
@@ -137,14 +140,6 @@
        .transcend-button:hover, .transcend-button:active {
         background-color: rgba(138, 43, 226, 0.6);
         transform: scale(1.05);
-       }
-       .raid-button {
-        background-color: rgba(255, 0, 0, 0.4);
-        border-color: var(--danger-glow-color);
-        box-shadow: 0 0 15px var(--danger-glow-color);
-       }
-       .raid-button:hover, .raid-button:active {
-        background-color: rgba(255, 0, 0, 0.6);
        }
       .selection-card {
         border: 2px solid #555;
@@ -208,6 +203,13 @@
          border: 2px solid #9370DB;
          box-shadow: 0 0 10px #9370DB;
        }
+       .skill-button.ready {
+         animation: pulse-glow 1.5s infinite;
+       }
+       @keyframes pulse-glow {
+         0%, 100% { box-shadow: 0 0 10px #9370DB; }
+         50% { box-shadow: 0 0 25px #9370DB, 0 0 10px #fff; }
+       }
        .skill-button .cooldown-overlay {
          position: absolute;
          inset: 0;
@@ -246,11 +248,27 @@
         display: flex;
         flex-direction: column;
       }
-       .tab-button {
-        flex: 1; padding: 8px 12px; border: none; background: none; color: #888; font-weight: bold; border-bottom: 2px solid transparent; transition: all 0.2s ease;
+       .jump-indicator-container {
+        position: absolute;
+        bottom: 22vh;
+        left: 4vw;
+        max-width: 100px;
+        width: 16vh;
+        display: flex;
+        justify-content: center;
+        gap: 12px;
       }
-       .tab-button.active {
-        color: var(--glow-color); border-bottom-color: var(--glow-color);
+      .jump-indicator {
+        width: 20px;
+        height: 20px;
+        background: var(--glow-color);
+        border-radius: 50%;
+        box-shadow: 0 0 8px var(--glow-color);
+        transition: all 0.2s ease;
+      }
+      .jump-indicator.used {
+        background: #555;
+        box-shadow: none;
       }
     </style>
   <script type="importmap">
@@ -278,13 +296,12 @@
 
         const WORLD_WIDTH = 1280; const WORLD_HEIGHT = 720; const GROUND_HEIGHT = 60; const GRAVITY = 3000; const PLAYER_X_POSITION = 150;
         const PLAYER_JUMP_FORCE = 1100; const PLAYER_RUN_SIZE = { x: 50, y: 70 }; const PLAYER_SLIDE_SIZE = { x: 70, y: 40 };
-        const INITIAL_MAX_HEALTH = 100; const HEALTH_DECAY_RATE = 2.0; const OBSTACLE_DAMAGE = 45; // Damage per second, was 60
-        const INITIAL_GAME_SPEED = 400; const GAME_SPEED_INCREASE_RATE = 4;
+        const INITIAL_MAX_HEALTH = 100; const HEALTH_DECAY_RATE = 2.0; const OBSTACLE_DAMAGE = 10; 
+        const INITIAL_GAME_SPEED = 400; const GAME_SPEED_INCREASE_RATE = 4; const MAX_GAME_SPEED = 800;
         const FEVER_GAUGE_MAX = 100; const FEVER_GAUGE_PER_JELLY = 5; const FEVER_DURATION = 8; const FEVER_OBSTACLE_SCORE = 100;
         const LAST_DASH_DURATION = 3;
         const GIANT_POTION_DURATION = 8; const BLAST_JELLY_DURATION = 1.5; const BLAST_JELLY_SPEED_MULTIPLIER = 2.5; const MAGNET_ITEM_DURATION = 10; const MAGNET_RADIUS = 250;
-        const BOSS_APPEARANCE_DISTANCE = 4000; const BOSS_MAX_HEALTH = 2500;
-        const GUILD_RAID_BOSS_MAX_HEALTH = 5000000;
+        const BOSS_MAX_HEALTH = 2500;
 
         const SvgIconWrapper = ({ children, color, filterId, className }) => (
             React.createElement('svg', { viewBox: "0 0 100 100", xmlns: "http://www.w3.org/2000/svg", className: className || "w-full h-full", style: { filter: `url(#${filterId})` } },
@@ -311,9 +328,8 @@
             'char12': { id: 'char12', name: '뱅커', description: '10초마다 현재 점수의 1%를 보너스로 얻습니다.', skill: 'interest_score', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00ff7f", filterId: "char12-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#00ff7f" }), React.createElement('text', { x: "50", y: "68", fontSize: "45", textAnchor: "middle", fill: "black", fontWeight: "bold" }, "$")) },
             'char13': { id: 'char13', name: '이지스', description: '보호막 파괴 시, 주변 장애물을 파괴합니다.', skill: 'shield_blast', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#1e90ff", filterId: "char13-glow", className: className }, React.createElement('path', { d: "M50 10 L90 30 L90 70 L50 90 L10 70 L10 30 Z", fill: "none", stroke: "#1e90ff", strokeWidth: "8" }), React.createElement('path', { d: "M50 10 L90 70 M10 70 L90 30", stroke: "#fff", strokeWidth: "4" })) },
             'char14': { id: 'char14', name: '리듬', description: '연속으로 5회 점프 시 추가 점수를 얻습니다.', skill: 'rhythm_bonus', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff1493", filterId: "char14-glow", className: className }, React.createElement('path', { d: "M20 70 Q 35 40, 50 70 T 80 70", stroke: "#ff1493", strokeWidth: "6", fill: "none" }), React.createElement('path', { d: "M20 50 Q 35 20, 50 50 T 80 50", stroke: "#ff1493", strokeWidth: "6", fill: "none" })) },
-            'char15': { id: 'char15', name: '게이저', description: '액티브 스킬: 전방으로 파괴적인 레이저를 발사합니다.', skill: 'laser_beam', cooldown: 8, maxLevel: 10, baseStat: 100, unlockCost: 5000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff6347", filterId: "char15-glow", className: className }, React.createElement('path', { d: "M50 20 L80 50 L50 80 L20 50 Z", fill: "#ff6347" }), React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "white" }), React.createElement('circle', { cx: "50", cy: "50", r: "8", fill: "red" })) },
-            'char16': { id: 'char16', name: '레이븐', description: '액티브 스킬: 체력을 소모하여 그림자 형태가 됩니다. 그림자 형태에서는 무적이며 젤리 점수가 2배가 됩니다.', skill: 'shadow_pact', cooldown: 20, maxLevel: 10, baseStat: 100, unlockCost: 7500, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#483d8b", filterId: "char16-glow", className: className }, React.createElement('path', { d: "M50 10 C 30 30, 20 70, 50 90 C 80 70, 70 30, 50 10 Z", fill: "#483d8b" }), React.createElement('path', { d: "M50 20 C 40 35, 35 60, 50 80 C 65 60, 60 35, 50 20 Z", fill: "#000" })) },
-            'char17': { id: 'char17', name: '팔라딘', description: '액티브 스킬: 보호 오라를 발동합니다. 오라 상태에서는 무적이며 통과한 장애물마다 피버 게이지를 획득합니다.', skill: 'protective_aura', cooldown: 25, maxLevel: 10, baseStat: 100, guildShop: true, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffd700", filterId: "char17-glow", className: className }, React.createElement('path', { d: "M50 10 L90 30 V70 L50 90 L10 70 V30 Z", fill: "#fff" }), React.createElement('path', { d: "M50 20 L75 35 V65 L50 80 L25 65 V35 Z", fill: "#ffd700" }), React.createElement('path', { d: "M50 30 L65 40 V60 L50 70 L35 60 V40 Z", fill: "#fff" })) },
+            'char15': { id: 'char15', name: '게이저', description: '액티브 스킬: 전방으로 파괴적인 레이저를 발사합니다.', skill: 'laser_beam', cooldown: 8, maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff6347", filterId: "char15-glow", className: className }, React.createElement('path', { d: "M50 20 L80 50 L50 80 L20 50 Z", fill: "#ff6347" }), React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "white" }), React.createElement('circle', { cx: "50", cy: "50", r: "8", fill: "red" })) },
+            'char16': { id: 'char16', name: '레이븐', description: '액티브 스킬: 체력을 소모하여 그림자 형태가 됩니다. 그림자 형태에서는 무적이며 젤리 점수가 2배가 됩니다.', skill: 'shadow_pact', cooldown: 20, maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#483d8b", filterId: "char16-glow", className: className }, React.createElement('path', { d: "M50 10 C 30 30, 20 70, 50 90 C 80 70, 70 30, 50 10 Z", fill: "#483d8b" }), React.createElement('path', { d: "M50 20 C 40 35, 35 60, 50 80 C 65 60, 60 35, 50 20 Z", fill: "#000" })) },
         };
 
         const PETS = {
@@ -331,15 +347,13 @@
             'pet12': { id: 'pet12', name: '미믹', description: '아이템 획득 시 20% 확률로 복제합니다.', skill: 'copy_item', maxLevel: 1, baseStat: 0.2, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ba55d3", filterId: "pet12-glow", className: className }, React.createElement('circle', { cx: "35", cy: "50", r: "20", fill: "#ba55d3" }), React.createElement('circle', { cx: "65", cy: "50", r: "20", fill: "#ba55d3", opacity: "0.7" })) },
             'pet13': { id: 'pet13', name: '블라스토이드', description: '젤리 50개를 모으면 작은 폭발을 일으킵니다.', skill: 'jelly_blast', maxLevel: 10, baseStat: 50, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#dc143c", filterId: "pet13-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#dc143c" }), React.createElement('path', { d: "M50 20 L55 45 L80 50 L55 55 L50 80 L45 55 L20 50 L45 45 Z", fill: "yellow" })) },
             'pet14': { id: 'pet14', name: '스파키', description: '피버 게이지 30%를 가지고 시작합니다.', skill: 'fever_start_boost', maxLevel: 1, baseStat: 30, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f0e68c", filterId: "pet14-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "25", fill: "#f0e68c" }), React.createElement('path', { d: "M50 25 V75 M25 50 H75", stroke: "#fff", strokeWidth: "6" })) },
-            'pet15': { id: 'pet15', name: '펄스', description: '액티브 스킬: 화면의 모든 장애물을 파괴합니다.', skill: 'emp_blast', cooldown: 15, maxLevel: 10, baseStat: 1, unlockCost: 5000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00BFFF", filterId: "pet15-glow", className: className }, React.createElement('path', { d: "M50 20 A 30 30 0 0 1 50 80 A 30 30 0 0 1 50 20 M50 35 A 15 15 0 0 1 50 65 A 15 15 0 0 1 50 35", fill: "none", stroke: "#00BFFF", strokeWidth: "8" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "white" })) },
-            'pet16': { id: 'pet16', name: '오라클', description: '일정 시간마다 다음에 나타날 장애물을 미리 표시해줍니다.', skill: 'foresight', maxLevel: 10, baseStat: 15, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffdead", filterId: "pet16-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "none", stroke: "#ffdead", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "30", r: "8", fill: "#fff" })) },
-            'pet17': { id: 'pet17', name: '그리핀', description: '모든 파워업 아이템의 지속 시간이 20% 증가합니다.', skill: 'powerup_boost', maxLevel: 10, baseStat: 20, guildShop: true, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f5deb3", filterId: "pet17-glow", className: className }, React.createElement('path', { d: "M20 80 L50 20 L80 80 M40 50 C 20 30, 80 30, 60 50", stroke: "#f5deb3", strokeWidth: "6", fill: "none" }), React.createElement('path', { d: "M30 20 C 50 0, 50 40, 70 20", stroke: "#fff", strokeWidth: "4", fill: "none" })) },
+            'pet15': { id: 'pet15', name: '펄스', description: '액티브 스킬: 화면의 모든 장애물을 파괴합니다.', skill: 'emp_blast', cooldown: 15, maxLevel: 10, baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00BFFF", filterId: "pet15-glow", className: className }, React.createElement('path', { d: "M50 20 A 30 30 0 0 1 50 80 A 30 30 0 0 1 50 20 M50 35 A 15 15 0 0 1 50 65 A 15 15 0 0 1 50 35", fill: "none", stroke: "#00BFFF", strokeWidth: "8" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "white" })) },
+            'pet16': { id: 'pet16', name: '오라클', description: '일정 시간마다 다음에 나타날 장애물을 미리 표시해줍니다.', skill: 'foresight', maxLevel: 10, baseStat: 15, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffdead", filterId: "pet16-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "none", stroke: "#ffdead", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "30", r: "8", fill: "#fff" })) },
         };
         
         const PARTNER_BONUSES = {
             'char1_pet1': { name: '단단한 유대', description: '최대 체력 +15', type: 'max_health_bonus', value: 15 }, 'char2_pet2': { name: '황금 듀오', description: '젤리 획득 점수 +10%', type: 'jelly_score_bonus', value: 0.1 }, 'char5_pet4': { name: '타오르는 열정', description: '피버 지속 시간 +15%', type: 'fever_duration_bonus', value: 0.15 }, 'char7_pet3': { name: '완벽한 방어', description: '펫 스킬 쿨타임 -25%', type: 'pet_cooldown_reduction', value: 0.25 }, 'char8_pet5': { name: '불사조의 의지', description: '부활 시 체력 50%로 부활', type: 'revive_health_bonus', value: 0.5 }, 'char6_pet6': { name: '행운의 부자', description: '게임 종료 젤리 보너스 +10%', type: 'currency_bonus_final', value: 0.1 }, 'char3_pet7': { name: '자기장 강화', description: '자석 아이템 지속 시간 +30%', type: 'magnet_duration_bonus', value: 0.3 }, 'char4_pet8': { name: '시간의 지배자', description: '슬로우 효과 지속 시간 +20%', type: 'slow_duration_bonus', value: 0.2 }, 'char1_pet2': { name: '러너스 하이', description: '기본 젤리 점수 +5', type: 'base_jelly_score_bonus', value: 5 }, 'char2_pet1': { name: '꺼지지 않는 체력', description: '체력 자연 감소 속도 -15%', type: 'health_decay_reduction', value: 0.15 }, 'char7_pet8': { name: '아이템 마스터', description: '모든 아이템 지속 시간 +10%', type: 'all_item_duration_bonus', value: 0.1 }, 'char15_pet15': { name: '시스템 붕괴', description: '액티브 스킬 쿨타임 -10%', type: 'active_skill_cooldown_reduction', value: 0.1 },
             'char16_pet16': { name: '그림자 예언', description: '그림자 형태 지속시간 +1초', type: 'shadow_pact_duration_bonus', value: 1 },
-            'char17_pet17': { name: '천상의 수호자', description: '액티브 스킬 오라 지속시간 +1초', type: 'protective_aura_duration_bonus', value: 1 },
         };
 
         const TREASURES = {
@@ -352,7 +366,7 @@
         };
 
         const MISSIONS = [
-            { id: 'm1', description: '젤리 500개 수집', type: 'collect_jellies', target: 500, reward: { currency: 100, gachaChests: 0 } }, { id: 'm2', description: '1,000m 달리기', type: 'run_distance', target: 1000, reward: { currency: 100, gachaChests: 0 } }, { id: 'm3', description: '장애물 20개 파괴', type: 'destroy_obstacles', target: 20, reward: { currency: 150, gachaChests: 0 } }, { id: 'm4', description: '점프 100번 하기', type: 'jump_count', target: 100, reward: { currency: 100, gachaChests: 0 } }, { id: 'm5', description: '피버 타임 5번 발동', type: 'fever_count', target: 5, reward: { currency: 200, gachaChests: 1 } }, { id: 'm6', description: '한 게임에서 10,000점 달성', type: 'single_run_score', target: 10000, reward: { currency: 250, gachaChests: 0 } }, { id: 'm7', description: '젤리 2,500개 수집', type: 'collect_jellies', target: 2500, reward: { currency: 300, gachaChests: 0 } }, { id: 'm8', description: '5,000m 달리기', type: 'run_distance', target: 5000, reward: { currency: 300, gachaChests: 0 } }, { id: 'm9', description: '아이템 25개 사용', type: 'use_items', target: 25, reward: { currency: 200, gachaChests: 0 } }, { id: 'm10', description: '총 50,000점 누적', type: 'total_score', target: 50000, reward: { currency: 500, gachaChests: 1 } }, { id: 'm11', description: '보스 1회 처치', type: 'boss_kills', target: 1, reward: { currency: 1000, gachaChests: 2 } },
+            { id: 'm1', description: '젤리 500개 수집', type: 'collect_jellies', target: 500, reward: { currency: 100, gachaChests: 0 } }, { id: 'm2', description: '1,000m 달리기', type: 'run_distance', target: 1000, reward: { currency: 100, gachaChests: 0 } }, { id: 'm3', description: '장애물 20개 파괴', type: 'destroy_obstacles', target: 20, reward: { currency: 150, gachaChests: 0 } }, { id: 'm4', description: '점프 100번 하기', type: 'jump_count', target: 100, reward: { currency: 100, gachaChests: 0 } }, { id: 'm5', description: '피버 타임 5번 발동', type: 'fever_count', target: 5, reward: { currency: 200, gachaChests: 1 } }, { id: 'm6', description: '한 게임에서 10,000점 달성', type: 'single_run_score', target: 10000, reward: { currency: 250, gachaChests: 0 } }, { id: 'm7', description: '젤리 2,500개 수집', type: 'collect_jellies', target: 2500, reward: { currency: 300, gachaChests: 0 } }, { id: 'm8', description: '5,000m 달리기', type: 'run_distance', target: 5000, reward: { currency: 300, gachaChests: 0 } }, { id: 'm9', description: '아이템 25개 사용', type: 'use_items', target: 25, reward: { currency: 200, gachaChests: 0 } }, { id: 'm10', description: '총 50,000점 누적', type: 'total_score', target: 50000, reward: { currency: 500, gachaChests: 1 } },
         ];
         
         const ENHANCEMENTS = {
@@ -432,9 +446,8 @@
             const [gachaResult, setGachaResult] = useState(null);
             const [gachaState, setGachaState] = useState('idle'); // 'idle', 'animating', 'result'
             const [teamDetailView, setTeamDetailView] = useState(null);
-            const [guildActiveTab, setGuildActiveTab] = useState('raid');
             
-            const [gameState, setGameState] = useState({ status: 'menu', score: 0, distance: 0, gameSpeed: INITIAL_GAME_SPEED, isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1, isRaidRun: false });
+            const [gameState, setGameState] = useState({ status: 'menu', score: 0, distance: 0, gameSpeed: INITIAL_GAME_SPEED, isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1 });
             const [bossState, setBossState] = useState({ isActive: false, health: 0, maxHealth: BOSS_MAX_HEALTH, attackTimer: 0, pattern: 'idle', pos: {x:0,y:0} });
 
             const playerStateRef = useRef(null);
@@ -443,8 +456,9 @@
             const petSkillTimerRef = useRef({});
             const inGameStatsRef = useRef({ jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0, bossKills: 0 });
             const reviveUsedRef = useRef(false);
-            const nextBossDistanceRef = useRef(BOSS_APPEARANCE_DISTANCE);
             const [, forceUpdate] = useState({});
+            const activeNavButton = useRef(null);
+            const [currentView, setCurrentView] = useState('main'); // main, team, enhancements, gacha, missions, treasures
 
             const activePartnerBonus = useMemo(() => { if (!playerData) return null; const comboKey = `${selectedCharId}_${selectedPetId}`; return PARTNER_BONUSES[comboKey] || null; }, [selectedCharId, selectedPetId, playerData]);
             
@@ -457,10 +471,9 @@
 
             useEffect(() => {
                 try {
-                    const savedData = localStorage.getItem('ipkoDashDataV2');
+                    const savedData = localStorage.getItem('ipkoDashDataV2_no_guild');
                     if (savedData) {
                         const parsedData = JSON.parse(savedData);
-                        // Data migration & validation
                         const initialEnhancements = { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 };
                         const initialMissions = {};
                         
@@ -468,33 +481,28 @@
                         parsedData.missions = { ...initialMissions, ...parsedData.missions };
                         if (!parsedData.treasures) parsedData.treasures = [];
                         if (!parsedData.equippedTreasures) parsedData.equippedTreasures = [];
-                        if (parsedData.treasureChests) { parsedData.gachaChests = (parsedData.gachaChests || 0) + parsedData.treasureChests; delete parsedData.treasureChests; }
                         if (!parsedData.gachaChests) parsedData.gachaChests = 1;
                         if (!parsedData.memoryFragments) parsedData.memoryFragments = 0;
-                        if (!parsedData.guildTokens) parsedData.guildTokens = 100; // Starting tokens for new system
-                        if (!parsedData.guild) {
-                            parsedData.guild = {
-                                id: 'sim_guild', name: '네온 용사들', members: 5, raidBossHealth: GUILD_RAID_BOSS_MAX_HEALTH, raidBossMaxHealth: GUILD_RAID_BOSS_MAX_HEALTH, raidAttempts: 1, lastRaidContribution: 0,
-                            };
-                        }
 
-
-                        // Add transcendence field if missing
                         Object.keys(parsedData.characters).forEach(charId => {
                            if (parsedData.characters[charId].transcendence === undefined) {
                                parsedData.characters[charId].transcendence = 0;
                            }
                         });
+                        
+                        // Remove guild-specific characters/pets if they exist from old data
+                        if (parsedData.characters['char17']) delete parsedData.characters['char17'];
+                        if (parsedData.pets['pet17']) delete parsedData.pets['pet17'];
 
                         setPlayerData(parsedData);
                     } else {
-                        const initialData = { characters: { 'char1': { level: 1, transcendence: 0 } }, pets: { 'pet1': { level: 1 } }, currency: 3000, highScore: 0, missions: {}, treasures: [], equippedTreasures: [], gachaChests: 3, enhancements: { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 }, memoryFragments: 0, guildTokens: 100, guild: { id: 'sim_guild', name: '네온 용사들', members: 5, raidBossHealth: GUILD_RAID_BOSS_MAX_HEALTH, raidBossMaxHealth: GUILD_RAID_BOSS_MAX_HEALTH, raidAttempts: 1, lastRaidContribution: 0 } };
+                        const initialData = { characters: { 'char1': { level: 1, transcendence: 0 } }, pets: { 'pet1': { level: 1 } }, currency: 3000, highScore: 0, missions: {}, treasures: [], equippedTreasures: [], gachaChests: 3, enhancements: { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 }, memoryFragments: 0 };
                         setPlayerData(initialData);
                     }
                 } catch (error) { console.error("Failed to load player data:", error); }
             }, []);
 
-            useEffect(() => { if (playerData) { try { localStorage.setItem('ipkoDashDataV2', JSON.stringify(playerData)); } catch (error) { console.error("Failed to save player data:", error); } } }, [playerData]);
+            useEffect(() => { if (playerData) { try { localStorage.setItem('ipkoDashDataV2_no_guild', JSON.stringify(playerData)); } catch (error) { console.error("Failed to save player data:", error); } } }, [playerData]);
             
             const getTreasureValue = useCallback((type) => {
                 if (!playerData?.equippedTreasures) return 0;
@@ -530,47 +538,24 @@
             }, [selectedPetId]);
 
             const finalizeRun = useCallback(() => {
-                if(gameState.isRaidRun) {
-                    const damage = Math.floor(gameState.score / 5); // Score to damage conversion
-                    setPlayerData(prev => {
-                        const newData = JSON.parse(JSON.stringify(prev));
-                        newData.guild.raidBossHealth = Math.max(0, newData.guild.raidBossHealth - damage);
-                        newData.guild.lastRaidContribution = damage;
-                        newData.guildTokens += Math.floor(damage / 100) + 10; // Participation reward
-                        if (newData.guild.raidBossHealth <= 0) { // Boss defeated
-                            newData.guildTokens += 500; // Defeat bonus
-                            newData.guild.raidBossHealth = newData.guild.raidBossMaxHealth; // Reset boss
-                        }
-                        return newData;
-                    });
-                } else {
-                    updateMissions(inGameStatsRef.current);
-                    setPlayerData(prev => {
-                        if (!prev) return null;
-                        const newHighScore = Math.max(prev.highScore, gameState.score);
-                        let petBonus = 1;
-                        if(PETS[selectedPetId].skill === 'currency_boost') {
-                            const petLevel = prev.pets[selectedPetId]?.level || 1;
-                            const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
-                            petBonus = 1 + getPetStat(PETS[selectedPetId], petLevel, isSynergy) / 100;
-                        }
-                        if(activePartnerBonus?.type === 'currency_bonus_final') petBonus += activePartnerBonus.value;
-                        const enhancementBonus = 1 + (prev.enhancements.currency_gain || 0) * ENHANCEMENTS.currency_gain.baseValue;
-                        const earnedCurrency = Math.floor(gameState.score / 10 * petBonus * enhancementBonus);
-                        return { ...prev, highScore: newHighScore, currency: Math.floor(prev.currency + earnedCurrency) };
-                    });
-                }
-            }, [gameState.score, gameState.isRaidRun, selectedCharId, selectedPetId, activePartnerBonus, updateMissions]);
+                updateMissions(inGameStatsRef.current);
+                setPlayerData(prev => {
+                    if (!prev) return null;
+                    const newHighScore = Math.max(prev.highScore, gameState.score);
+                    let petBonus = 1;
+                    if(PETS[selectedPetId].skill === 'currency_boost') {
+                        const petLevel = prev.pets[selectedPetId]?.level || 1;
+                        const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
+                        petBonus = 1 + getPetStat(PETS[selectedPetId], petLevel, isSynergy) / 100;
+                    }
+                    if(activePartnerBonus?.type === 'currency_bonus_final') petBonus += activePartnerBonus.value;
+                    const enhancementBonus = 1 + (prev.enhancements.currency_gain || 0) * ENHANCEMENTS.currency_gain.baseValue;
+                    const earnedCurrency = Math.floor(inGameStatsRef.current.jellies * petBonus * enhancementBonus);
+                    return { ...prev, highScore: newHighScore, currency: Math.floor(prev.currency + earnedCurrency) };
+                });
+            }, [gameState.score, selectedCharId, selectedPetId, activePartnerBonus, updateMissions]);
 
-            const startGame = (isRaid = false) => {
-                if(isRaid) {
-                    if ((playerData.guild.raidAttempts || 0) < 1) return;
-                    setPlayerData(prev => {
-                        const newData = JSON.parse(JSON.stringify(prev));
-                        newData.guild.raidAttempts -= 1;
-                        return newData;
-                    });
-                }
+            const startGame = () => {
                 const character = CHARACTERS[selectedCharId];
                 const pet = PETS[selectedPetId];
                 const charLevel = playerData.characters[selectedCharId]?.level || 1;
@@ -579,17 +564,16 @@
                 if (activePartnerBonus?.type === 'max_health_bonus') maxHealth += activePartnerBonus.value;
                 let baseSpeed = INITIAL_GAME_SPEED * (1 + getTreasureValue('speed_boost'));
                 if (character.skill === 'high_speed') baseSpeed *= 1.2;
-                playerStateRef.current = { pos: { x: PLAYER_X_POSITION, y: WORLD_HEIGHT - GROUND_HEIGHT - PLAYER_RUN_SIZE.y }, size: PLAYER_RUN_SIZE, vy: 0, health: maxHealth, maxHealth: maxHealth, isJumping: false, jumpCount: 0, rhythmJumpCombo: 0, transcendenceJumpCounter: 0, isSliding: false, hasShield: false, isGiant: false, isBlasting: false, hasMagnet: false, activeEffects: {}, skillTimers: { teleport: 5, interest: 10, protective_aura_pass: 0 }, jellyBlastCounter: 0 };
+                playerStateRef.current = { pos: { x: PLAYER_X_POSITION, y: WORLD_HEIGHT - GROUND_HEIGHT - PLAYER_RUN_SIZE.y }, size: PLAYER_RUN_SIZE, vy: 0, health: maxHealth, maxHealth: maxHealth, isJumping: false, jumpCount: 0, rhythmJumpCombo: 0, transcendenceJumpCounter: 0, isSliding: false, hasShield: false, isGiant: false, isBlasting: false, hasMagnet: false, activeEffects: {}, skillTimers: { teleport: 5, interest: 10 }, jellyBlastCounter: 0, invincibilityTimer: 0 };
                 if (character.skill === 'start_magnet') { playerStateRef.current.activeEffects['magnet'] = 5; }
                 let initialFever = 0;
                 if (pet.skill === 'fever_start_boost') { initialFever = FEVER_GAUGE_MAX * (pet.baseStat / 100); }
                 gameObjectsRef.current = [];
                 nextSpawnDistanceRef.current = 0;
-                nextBossDistanceRef.current = BOSS_APPEARANCE_DISTANCE;
                 petSkillTimerRef.current = { health_potion: 0, shield_item: 0, generate_bonus_jelly: 0, foresight: 0 };
                 inGameStatsRef.current = { jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0, bossKills: 0 };
                 reviveUsedRef.current = false;
-                setGameState({ status: 'playing', score: 0, distance: 0, gameSpeed: baseSpeed, isFeverTime: false, feverGauge: initialFever, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1, isRaidRun: isRaid });
+                setGameState({ status: 'playing', score: 0, distance: 0, gameSpeed: baseSpeed, isFeverTime: false, feverGauge: initialFever, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1 });
                 setBossState({ isActive: false, health: 0, maxHealth: BOSS_MAX_HEALTH, attackTimer: 0, pattern: 'idle', pos: {x:0,y:0} });
             };
 
@@ -599,10 +583,6 @@
             };
 
             const startLastDash = () => {
-                if (gameState.isRaidRun) {
-                    triggerGameOver();
-                    return;
-                }
                 const pet = PETS[selectedPetId];
                 if (pet.skill === 'revive' && !reviveUsedRef.current) {
                     reviveUsedRef.current = true;
@@ -616,23 +596,6 @@
                     if(CHARACTERS[selectedCharId].skill === 'last_dash_boost') duration *= 1.5;
                     setGameState(prev => ({...prev, isLastDash: true, lastDashTimeLeft: duration}));
                 }
-            };
-            
-            const startBossBattle = () => {
-                setGameState(prev => ({ ...prev, status: 'boss_battle' }));
-                setBossState({ isActive: true, health: BOSS_MAX_HEALTH, maxHealth: BOSS_MAX_HEALTH, attackTimer: 3, pattern: 'entering', pos: {x: WORLD_WIDTH - 250, y: 150} });
-                gameObjectsRef.current = gameObjectsRef.current.filter(obj => !obj.type.startsWith('obstacle'));
-            };
-            
-            const endBossBattle = (isWin) => {
-                if(isWin) {
-                    setGameState(prev => ({...prev, score: prev.score + 5000, worldLevel: prev.worldLevel + 1 }));
-                    inGameStatsRef.current.bossKills++;
-                    setPlayerData(prev => ({...prev, gachaChests: (prev.gachaChests || 0) + 1}));
-                }
-                setBossState(prev => ({ ...prev, isActive: false }));
-                nextBossDistanceRef.current = gameState.distance + BOSS_APPEARANCE_DISTANCE;
-                setTimeout(() => setGameState(prev => ({ ...prev, status: 'playing' })), 1000);
             };
 
             const togglePause = () => { setGameState(prev => ({ ...prev, isPaused: !prev.isPaused })); };
@@ -674,49 +637,11 @@
                 }
                 gameObjectsRef.current.push(...newObjects); nextSpawnDistanceRef.current = gameState.distance + Math.random() * 300 + 250;
             }, [gameState.distance, selectedCharId]);
-            
-            const bossLogic = useCallback((deltaTime) => {
-                let currentBoss = bossState;
-                currentBoss.attackTimer -= deltaTime;
-
-                if (currentBoss.attackTimer <= 0) {
-                     const nextPattern = Math.random() > 0.5 ? 'laser' : 'missiles';
-                     currentBoss.pattern = nextPattern;
-                     currentBoss.attackTimer = 4; // reset timer
-                     
-                     if (nextPattern === 'laser') {
-                         const isHigh = Math.random() > 0.5;
-                         gameObjectsRef.current.push({ id: Math.random(), type: 'boss_laser', pos: { x: PLAYER_X_POSITION + 50, y: isHigh ? WORLD_HEIGHT - GROUND_HEIGHT - 150 : WORLD_HEIGHT - GROUND_HEIGHT - 50 }, size: { x: WORLD_WIDTH, y: 20 }, Icon: GazerLaserIcon, lifetime: 1.5 });
-                     } else if (nextPattern === 'missiles') {
-                         for(let i=0; i<3; i++) {
-                             setTimeout(() => {
-                                const xPos = PLAYER_X_POSITION + 200 + Math.random() * (WORLD_WIDTH / 2);
-                                gameObjectsRef.current.push({ 
-                                    id: Math.random(), 
-                                    type: 'boss_projectile', 
-                                    pos: { x: xPos, y: WORLD_HEIGHT },
-                                    size: { x: 40, y: 40 }, 
-                                    Icon: BossProjectileIcon, 
-                                    vy: -700
-                                });
-                             }, i * 400);
-                         }
-                     }
-                }
-                
-                // Spawn energy cores
-                if(Math.random() < 0.02) {
-                     gameObjectsRef.current.push({ id: Math.random(), type: 'energy_core', pos: { x: WORLD_WIDTH + 50, y: Math.random() * (WORLD_HEIGHT - GROUND_HEIGHT - 100) + 50 }, size: { x: 30, y: 30 }, Icon: EnergyCoreIcon });
-                }
-
-                setBossState(currentBoss);
-            }, [bossState]);
 
             const gameLoop = useCallback((deltaTime) => {
                 if (gameState.isPaused) return; const player = playerStateRef.current; if (!player) return; const character = CHARACTERS[selectedCharId]; const pet = PETS[selectedPetId]; const petLevel = playerData.pets[selectedPetId]?.level || 1; const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
                 
                 setGameState(prev => ({...prev, activeSkillCooldown: Math.max(0, prev.activeSkillCooldown - deltaTime) }));
-                if (gameState.status === 'boss_battle') { bossLogic(deltaTime); }
 
                 // --- SPEED & MOVEMENT ---
                 let speedMultiplier = 1; let speedIncreaseRate = GAME_SPEED_INCREASE_RATE;
@@ -727,14 +652,16 @@
 
                 let newGameSpeed, actualSpeed, newDistance, newScore, newFeverGauge;
                 if(gameState.isLastDash) { let newLastDashTimeLeft = gameState.lastDashTimeLeft - deltaTime; if(newLastDashTimeLeft <= 0) { triggerGameOver(); return; } player.health = 0; setGameState(prev => ({...prev, lastDashTimeLeft: newLastDashTimeLeft})); }
-                newGameSpeed = gameState.gameSpeed + speedIncreaseRate * deltaTime; actualSpeed = newGameSpeed * speedMultiplier; newDistance = gameState.distance + actualSpeed * deltaTime; inGameStatsRef.current.distance += actualSpeed * deltaTime / 100; newScore = gameState.score; newFeverGauge = gameState.feverGauge;
+                newGameSpeed = Math.min(MAX_GAME_SPEED, gameState.gameSpeed + speedIncreaseRate * deltaTime);
+                actualSpeed = newGameSpeed * speedMultiplier; newDistance = gameState.distance + actualSpeed * deltaTime; inGameStatsRef.current.distance += actualSpeed * deltaTime / 100; newScore = gameState.score; newFeverGauge = gameState.feverGauge;
                 
                 Object.keys(player.activeEffects).forEach(effect => { player.activeEffects[effect] -= deltaTime; if (player.activeEffects[effect] <= 0) { delete player.activeEffects[effect]; if(effect === 'giant') player.isGiant = false; if(effect === 'blast') player.isBlasting = false; if(effect === 'magnet') player.hasMagnet = false; } });
                 player.vy -= GRAVITY * deltaTime; player.pos.y -= player.vy * deltaTime;
                 if (player.pos.y > WORLD_HEIGHT - GROUND_HEIGHT - player.size.y) { player.pos.y = WORLD_HEIGHT - GROUND_HEIGHT - player.size.y; player.vy = 0; if (player.isJumping) { player.isJumping = false; player.jumpCount = 0; if (player.rhythmJumpCombo > 1) { newScore += player.rhythmJumpCombo * 100; } player.rhythmJumpCombo = 0; } }
+                if (player.invincibilityTimer > 0) player.invincibilityTimer -= deltaTime;
 
                 // --- HEALTH & FEVER ---
-                let healthDecayMod = 1; if(activePartnerBonus?.type === 'health_decay_reduction') healthDecayMod = 1 - activePartnerBonus.value; if (!gameState.isFeverTime && !gameState.isLastDash && !gameState.isRaidRun) { player.health -= HEALTH_DECAY_RATE * (newGameSpeed / INITIAL_GAME_SPEED) * deltaTime * healthDecayMod; }
+                let healthDecayMod = 1; if(activePartnerBonus?.type === 'health_decay_reduction') healthDecayMod = 1 - activePartnerBonus.value; if (!gameState.isLastDash) { player.health -= HEALTH_DECAY_RATE * deltaTime * healthDecayMod; }
                 let newFeverTimeLeft = gameState.feverTimeLeft; if (gameState.isFeverTime) { newFeverTimeLeft -= deltaTime; if (newFeverTimeLeft <= 0) { setGameState(prev => ({...prev, isFeverTime: false})); newFeverTimeLeft = 0; } }
 
                 // --- SKILLS & PETS ---
@@ -769,7 +696,7 @@
                 let rainbowBearCollected = false;
                 const remainingGameObjects = [];
                 for (const obj of gameObjectsRef.current) {
-                    let currentSpeed = (gameState.status === 'boss_battle') ? INITIAL_GAME_SPEED : actualSpeed;
+                    let currentSpeed = actualSpeed;
                     if (player.activeEffects['magnet'] > 0 && (obj.type === 'jelly' || obj.type === 'big_jelly' || obj.type === 'energy_core')) { const dist = Math.sqrt(Math.pow(obj.pos.x - playerCenter.x, 2) + Math.pow(obj.pos.y - playerCenter.y, 2)); if (dist < MAGNET_RADIUS) { obj.pos.x -= (obj.pos.x - playerCenter.x) * 0.1; obj.pos.y -= (obj.pos.y - playerCenter.y) * 0.1; } }
                     if (obj.type === 'obstacle_falling') { obj.vy = (obj.vy || 0) + GRAVITY * 0.3 * deltaTime; obj.pos.y += obj.vy * deltaTime; if (obj.pos.y > WORLD_HEIGHT) continue; }
                     
@@ -783,7 +710,6 @@
                     let shouldKeep = true;
                     if (playerRect.x < objRect.x + objRect.width && playerRect.x + playerRect.width > objRect.x && playerRect.y < objRect.y + objRect.height && playerRect.y + playerRect.height > objRect.y) {
                         const isShadowPactActive = player.activeEffects['shadow_pact'] > 0;
-                        const isAuraActive = player.activeEffects['protective_aura'] > 0;
                         
                         const handleJellyCollision = (isBig) => { inGameStatsRef.current.jellies++; player.jellyBlastCounter++; if (pet.skill === 'jelly_blast' && player.jellyBlastCounter >= petStat) { player.jellyBlastCounter = 0; createBlast(playerCenter, 150); } const petScoreBonus = (PETS[selectedPetId].skill === 'score_bonus') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; const treasureScoreBonus = 1 + getTreasureValue('score_bonus'); const jellyScoreBonus = activePartnerBonus?.type === 'jelly_score_bonus' ? 1 + activePartnerBonus.value : 1; const treasureJellyPercentBonus = 1 + getTreasureValue('base_jelly_score_percentage_bonus'); const enhancementBonus = 1 + (playerData.enhancements.jelly_score || 0) * ENHANCEMENTS.jelly_score.baseValue; let baseJellyScore = isBig ? 50 : 10; if (activePartnerBonus?.type === 'base_jelly_score_bonus') baseJellyScore += activePartnerBonus.value; const shadowPactMultiplier = isShadowPactActive ? 2 : 1; newScore += Math.floor((baseJellyScore + petScoreBonus) * treasureScoreBonus * jellyScoreBonus * treasureJellyPercentBonus * enhancementBonus * shadowPactMultiplier); if (!gameState.isFeverTime) { const petFeverBonus = (PETS[selectedPetId].skill === 'fever_boost') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; newFeverGauge = Math.min(FEVER_GAUGE_MAX, newFeverGauge + FEVER_GAUGE_PER_JELLY + petFeverBonus); } shouldKeep = false; };
                         const handleItemCollision = (itemType) => { inGameStatsRef.current.itemsUsed++; let effectMultiplier = (character.skill === 'item_double_effect') ? 2 : 1; let durationMultiplier = 1; if(PETS[selectedPetId].skill === 'powerup_boost') durationMultiplier += getPetStat(PETS[selectedPetId], petLevel, isSynergy) / 100; if(PETS[selectedPetId].skill === 'item_duration_boost') durationMultiplier += PETS[selectedPetId].baseStat; if(activePartnerBonus?.type === 'all_item_duration_bonus') durationMultiplier += activePartnerBonus.value; const finalDurationMultiplier = durationMultiplier * effectMultiplier; if (pet.skill === 'copy_item' && Math.random() < pet.baseStat) { gameObjectsRef.current.push({ ...obj, id: Math.random(), pos: {x: player.pos.x + 200, y: obj.pos.y} }); } switch(itemType) { case 'health_potion_item': player.health = Math.min(player.maxHealth, player.health + 20 * effectMultiplier); break; case 'giant_potion': player.isGiant = true; player.activeEffects['giant'] = GIANT_POTION_DURATION * (1 + getTreasureValue('giant_duration')) * finalDurationMultiplier; break; case 'blast_jelly': player.isBlasting = true; player.activeEffects['blast'] = BLAST_JELLY_DURATION * finalDurationMultiplier; break; case 'shield_item': player.hasShield = true; break; case 'magnet_item': player.hasMagnet = true; let magnetBonus = activePartnerBonus?.type === 'magnet_duration_bonus' ? 1 + activePartnerBonus.value : 1; player.activeEffects['magnet'] = MAGNET_ITEM_DURATION * (1 + getTreasureValue('magnet_duration')) * finalDurationMultiplier * magnetBonus; break; } shouldKeep = false; };
@@ -792,31 +718,25 @@
                         else if (obj.type.endsWith('_item') || obj.type.endsWith('_potion') || obj.type === 'blast_jelly') { handleItemCollision(obj.type); }
                         else if (obj.type === 'jelly') { handleJellyCollision(false); }
                         else if (obj.type === 'big_jelly') { handleJellyCollision(true); }
-                        else if (obj.type === 'energy_core') {
-                            setBossState(prev => { const newHealth = prev.health - 100; if(newHealth <= 0) endBossBattle(true); return {...prev, health: newHealth }; });
-                            shouldKeep = false;
-                        } else if (obj.type.startsWith('obstacle') || obj.type === 'boss_laser' || obj.type === 'boss_projectile') {
+                        else if (obj.type.startsWith('obstacle') || obj.type === 'boss_laser' || obj.type === 'boss_projectile') {
                             const isLiftInvincible = player.isSliding && character.skill === 'slide_invincible';
-                            if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash || isShadowPactActive || isAuraActive) {
-                                if (isAuraActive && !player.skillTimers.protective_aura_pass) {
-                                    newFeverGauge = Math.min(FEVER_GAUGE_MAX, newFeverGauge + 10);
-                                    player.skillTimers.protective_aura_pass = obj.id; // Mark as passed
-                                }
-                                if(!obj.type.startsWith('boss') && !isAuraActive) { 
+                            if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash || isShadowPactActive || player.invincibilityTimer > 0) {
+                                if(!obj.type.startsWith('boss') && player.invincibilityTimer <= 0) { 
                                   inGameStatsRef.current.obstaclesDestroyed++; newScore += FEVER_OBSTACLE_SCORE; shouldKeep = false; 
                                 }
                             }
                             else if (player.hasShield) { player.hasShield = false; if (character.skill === 'shield_blast') { createBlast(playerCenter, 200); } shouldKeep = false; }
                             else if (isLiftInvincible) { /* Pass through */ }
                             else if (pet.skill === 'damage_negation' && Math.random() * 100 < getPetStat(pet, petLevel, isSynergy)) { shouldKeep = false; }
-                            else { player.health -= OBSTACLE_DAMAGE * deltaTime; setHitFlash(true); setTimeout(() => setHitFlash(false), 150); }
+                            else { 
+                                player.health -= OBSTACLE_DAMAGE; 
+                                player.invincibilityTimer = 0.5; // 0.5 seconds of invincibility
+                                setHitFlash(true); 
+                                setTimeout(() => setHitFlash(false), 150); 
+                            }
                         }
                     }
                     if (shouldKeep) {
-                        // Reset aura pass check if player is no longer colliding with this obstacle
-                        if (player.skillTimers.protective_aura_pass === obj.id && (playerRect.x >= objRect.x + objRect.width || playerRect.x + playerRect.width <= objRect.x)) {
-                            player.skillTimers.protective_aura_pass = 0;
-                        }
                         remainingGameObjects.push(obj);
                     }
                 }
@@ -825,19 +745,19 @@
                 // --- UPDATE STATE ---
                 inGameStatsRef.current.currentRunScore = newScore;
                 let isFeverNow = gameState.isFeverTime; if (!isFeverNow && newFeverGauge >= FEVER_GAUGE_MAX) { isFeverNow = true; inGameStatsRef.current.fevers++; let feverDurBonus = activePartnerBonus?.type === 'fever_duration_bonus' ? 1 + activePartnerBonus.value : 1; const enhancementFeverBonus = (playerData.enhancements.fever_duration || 0) * ENHANCEMENTS.fever_duration.baseValue; newFeverTimeLeft = (FEVER_DURATION + enhancementFeverBonus) * (1 + getTreasureValue('fever_duration')) * feverDurBonus; newFeverGauge = 0; }
-                if (newDistance > nextSpawnDistanceRef.current && gameState.status === 'playing' && !gameState.isRaidRun) spawnGameObject(); 
+                if (newDistance > nextSpawnDistanceRef.current && gameState.status === 'playing') spawnGameObject(); 
                 if (player.health <= 0 && !gameState.isLastDash) { startLastDash(); }
                 setGameState(prev => ({ ...prev, score: Math.floor(newScore), distance: newDistance, gameSpeed: newGameSpeed, isFeverTime: isFeverNow, feverGauge: newFeverGauge, feverTimeLeft: newFeverTimeLeft }));
                 forceUpdate({});
-            }, [gameState, playerData, selectedCharId, selectedPetId, spawnGameObject, activePartnerBonus, getTreasureValue, finalizeRun, bossLogic, bossState]);
+            }, [gameState, playerData, selectedCharId, selectedPetId, spawnGameObject, activePartnerBonus, getTreasureValue, finalizeRun]);
 
-            useGameLoop(gameLoop, (gameState.status === 'playing' || gameState.status === 'boss_battle') && !gameState.isPaused);
+            useGameLoop(gameLoop, (gameState.status === 'playing') && !gameState.isPaused);
 
-            const handleJump = useCallback(() => { if (gameState.status !== 'playing' && gameState.status !== 'boss_battle' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.jumpCount >= 2 || player.isSliding) return; player.vy = PLAYER_JUMP_FORCE * (1 + getTreasureValue('jump_boost')); player.isJumping = true; player.jumpCount++; inGameStatsRef.current.jumps++; player.transcendenceJumpCounter++; if (CHARACTERS[selectedCharId].skill === 'rhythm_bonus') { player.rhythmJumpCombo++; if(player.rhythmJumpCombo === 5) { setGameState(prev => ({...prev, score: prev.score + 1000})); player.rhythmJumpCombo = 0; } } }, [gameState.status, gameState.isPaused, getTreasureValue, selectedCharId]);
-            const handleJumpRelease = useCallback(() => { if (gameState.status !== 'playing' && gameState.status !== 'boss_battle' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.vy <= 0) return; player.vy *= 0.5; }, [gameState.status, gameState.isPaused]);
-            const handleSlide = useCallback((isSliding) => { if (gameState.status !== 'playing' && gameState.status !== 'boss_battle' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.isJumping) return; player.isSliding = isSliding; const newSize = isSliding ? PLAYER_SLIDE_SIZE : PLAYER_RUN_SIZE; const oldY = player.pos.y + player.size.y; player.size = newSize; player.pos.y = oldY - newSize.y; }, [gameState.status, gameState.isPaused]);
+            const handleJump = useCallback(() => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.jumpCount >= 2 || player.isSliding) return; player.vy = PLAYER_JUMP_FORCE * (1 + getTreasureValue('jump_boost')); player.isJumping = true; player.jumpCount++; inGameStatsRef.current.jumps++; player.transcendenceJumpCounter++; if (CHARACTERS[selectedCharId].skill === 'rhythm_bonus') { player.rhythmJumpCombo++; if(player.rhythmJumpCombo === 5) { setGameState(prev => ({...prev, score: prev.score + 1000})); player.rhythmJumpCombo = 0; } } }, [gameState.status, gameState.isPaused, getTreasureValue, selectedCharId]);
+            const handleJumpRelease = useCallback(() => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.vy <= 0) return; player.vy *= 0.5; }, [gameState.status, gameState.isPaused]);
+            const handleSlide = useCallback((isSliding) => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.isJumping) return; player.isSliding = isSliding; const newSize = isSliding ? PLAYER_SLIDE_SIZE : PLAYER_RUN_SIZE; const oldY = player.pos.y + player.size.y; player.size = newSize; player.pos.y = oldY - newSize.y; }, [gameState.status, gameState.isPaused]);
             const handleActiveSkill = useCallback(() => {
-                if ((gameState.status !== 'playing' && gameState.status !== 'boss_battle') || gameState.isPaused || gameState.activeSkillCooldown > 0) return;
+                if (gameState.status !== 'playing' || gameState.isPaused || gameState.activeSkillCooldown > 0) return;
                 const player = playerStateRef.current;
                 const character = CHARACTERS[selectedCharId];
                 const pet = PETS[selectedPetId];
@@ -848,23 +768,20 @@
                     gameObjectsRef.current.push({ id: Math.random(), type: 'gazer_laser', pos: { x: player.pos.x + player.size.x, y: laserY }, size: { x: WORLD_WIDTH, y: laserSizeY }, Icon: GazerLaserIcon, lifetime: 0.5 });
                     const affected = gameObjectsRef.current.filter(obj => obj.type.startsWith('obstacle') && obj.pos.y < laserY + laserSizeY && obj.pos.y + obj.size.y > laserY).map(o => o.id);
                     if (affected.length > 0) { inGameStatsRef.current.obstaclesDestroyed += affected.length; gameObjectsRef.current = gameObjectsRef.current.filter(obj => !affected.includes(obj.id)); }
-                    if (bossState.isActive) { const bossRect = { x: bossState.pos.x, y: bossState.pos.y, width: 200, height: 200 }; if (bossRect.y < laserY + laserSizeY && bossRect.y + bossRect.height > laserY) { setBossState(prev => { const newHealth = prev.health - 300; if (newHealth <= 0) endBossBattle(true); return { ...prev, health: newHealth }; }); } }
                 } else if (pet.skill === 'emp_blast') {
                     skillUsed = true; cooldown = pet.cooldown; createBlast({ x: player.pos.x, y: player.pos.y }, WORLD_WIDTH);
                 } else if (character.skill === 'shadow_pact') {
                     if (player.health > player.maxHealth * 0.21) { // Safety margin
                         skillUsed = true; cooldown = character.cooldown; player.health -= player.maxHealth * 0.2; let duration = 5; if(activePartnerBonus?.type === 'shadow_pact_duration_bonus') duration += activePartnerBonus.value; player.activeEffects['shadow_pact'] = duration;
                     }
-                } else if (character.skill === 'protective_aura') {
-                    skillUsed = true; cooldown = character.cooldown; let duration = 4; if(activePartnerBonus?.type === 'protective_aura_duration_bonus') duration += activePartnerBonus.value; player.activeEffects['protective_aura'] = duration;
                 }
                 
                 if (skillUsed) { let cooldownReduction = activePartnerBonus?.type === 'active_skill_cooldown_reduction' ? 1 - activePartnerBonus.value : 1; setGameState(prev => ({...prev, activeSkillCooldown: cooldown * cooldownReduction})); }
-            }, [gameState, selectedCharId, selectedPetId, activePartnerBonus, bossState]);
+            }, [gameState, selectedCharId, selectedPetId, activePartnerBonus]);
 
             useEffect(() => {
-                const onKeyDown = (e) => { if ((gameState.status !== 'playing' && gameState.status !== 'boss_battle') || e.repeat) return; if(e.code === 'Escape') togglePause(); if(gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJump(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(true); if (e.code === 'KeyF') handleActiveSkill(); };
-                const onKeyUp = (e) => { if ((gameState.status !== 'playing' && gameState.status !== 'boss_battle') || gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJumpRelease(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(false); };
+                const onKeyDown = (e) => { if (gameState.status !== 'playing' || e.repeat) return; if(e.code === 'Escape') togglePause(); if(gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJump(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(true); if (e.code === 'KeyF') handleActiveSkill(); };
+                const onKeyUp = (e) => { if (gameState.status !== 'playing' || gameState.isPaused) return; if (e.code === 'Space' || e.code === 'ArrowUp') handleJumpRelease(); if (e.code === 'ArrowDown' || e.code === 'KeyS') handleSlide(false); };
                 window.addEventListener('keydown', onKeyDown); window.addEventListener('keyup', onKeyUp); return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); };
             }, [gameState.status, gameState.isPaused, handleJump, handleSlide, handleJumpRelease, togglePause, handleActiveSkill]);
 
@@ -924,7 +841,7 @@
                         const allPets = Object.values(PETS);
 
                         if (roll < 0.05 + luck * 0.1) { // Epic
-                            const epicChars = allChars.filter(c => c.unlockCost > 3000 || c.skill.includes('laser') || c.skill.includes('shadow'));
+                            const epicChars = allChars.filter(c => c.skill.includes('laser') || c.skill.includes('shadow_pact'));
                             const target = epicChars[Math.floor(Math.random() * epicChars.length)];
                             if (!newData.characters[target.id]) {
                                 newData.characters[target.id] = { level: 1, transcendence: 0 };
@@ -934,7 +851,7 @@
                                 result = { type: 'fragments', amount: 50, rarity: 'epic', note: `${target.name} 중복` };
                             }
                         } else if (roll < 0.20 + luck * 0.2) { // Rare
-                            const rarePets = allPets.filter(p => p.unlockCost > 1000 || p.skill.includes('emp'));
+                            const rarePets = allPets.filter(p => p.skill.includes('emp') || p.skill.includes('revive'));
                             const target = rarePets[Math.floor(Math.random() * rarePets.length)];
                             if (!newData.pets[target.id]) {
                                 newData.pets[target.id] = { level: 1 };
@@ -994,8 +911,7 @@
                 return React.createElement('div', { className: 'w-full h-full flex flex-col text-white' },
                     React.createElement('header', { className: 'w-full p-4 flex justify-between items-center text-lg' },
                         React.createElement('div', { className: 'flex items-center gap-4' },
-                            React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, 'J', playerData.currency.toLocaleString()),
-                            React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, '🛡️', playerData.guildTokens || 0)
+                            React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, 'J', playerData.currency.toLocaleString())
                         ),
                         React.createElement('div', { className: 'flex items-center gap-4' },
                             React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, '🧩', playerData.memoryFragments || 0),
@@ -1004,8 +920,8 @@
                     ),
                     React.createElement('main', { className: 'flex-grow flex flex-col items-center justify-center relative' },
                         React.createElement('h1', { className: 'absolute top-0 text-3xl font-black glowing-text' }, "잎코대쉬"),
-                        React.createElement('div', { className: 'w-40 h-40 player-running', onClick: () => setActiveOverlay('team') }, React.createElement(character.Icon, null)),
-                        React.createElement('div', { className: 'w-20 h-20 absolute bottom-[25%] right-[30%] player-running', style:{animationDuration: '0.6s'}, onClick: () => setActiveOverlay('team') }, React.createElement(pet.Icon, null)),
+                        React.createElement('div', { className: 'w-40 h-40 player-running', onClick: () => setCurrentView('team') }, React.createElement(character.Icon, null)),
+                        React.createElement('div', { className: 'w-20 h-20 absolute bottom-[25%] right-[30%] player-running', style:{animationDuration: '0.6s'}, onClick: () => setCurrentView('team') }, React.createElement(pet.Icon, null)),
                          activePartnerBonus && React.createElement('div', { className: "bg-purple-500/20 border border-purple-400 p-2 rounded-lg text-center absolute top-12" },
                             React.createElement('p', { className: "font-bold text-sm text-purple-300" }, `✨ 짝꿍 효과: ${activePartnerBonus.name} ✨`),
                             React.createElement('p', { className: "text-xs text-purple-200" }, activePartnerBonus.description)
@@ -1016,14 +932,13 @@
                              React.createElement('h2', {className: 'text-xl font-bold'}, `${character.name} Lv.${charData.level}`),
                              React.createElement('h3', {className: 'text-md text-gray-400'}, `${pet.name} Lv.${petData.level}`),
                         ),
-                        React.createElement('button', { onClick: () => startGame(false), className: "w-full py-4 text-xl font-black ui-button" }, "GAME START"),
+                        React.createElement('button', { onClick: () => startGame(), className: "w-full py-4 text-xl font-black ui-button" }, "GAME START"),
                         React.createElement('nav', { className: 'w-full flex justify-around p-2 bg-black/30 rounded-full border border-gray-700' },
-                           React.createElement('button', { onClick: () => setActiveOverlay('team'), className: 'nav-button' }, '👥', React.createElement('span', null, '팀 편성')),
-                           React.createElement('button', { onClick: () => setActiveOverlay('guild'), className: 'nav-button' }, '🛡️', React.createElement('span', null, '길드')),
-                           React.createElement('button', { onClick: () => setActiveOverlay('enhancements'), className: 'nav-button' }, '🚀', React.createElement('span', null, '강화')),
-                           React.createElement('button', { onClick: () => setActiveOverlay('gacha'), className: 'nav-button' }, '🎁', React.createElement('span', null, '뽑기')),
-                           React.createElement('button', { onClick: () => setActiveOverlay('missions'), className: 'nav-button' }, '🎯', React.createElement('span', null, '미션')),
-                           React.createElement('button', { onClick: () => setActiveOverlay('treasures'), className: 'nav-button' }, '💎', React.createElement('span', null, '보물'))
+                           React.createElement('button', { onClick: () => setCurrentView('team'), className: `nav-button ${currentView === 'team' ? 'active' : ''}` }, '👥', React.createElement('span', null, '팀 편성')),
+                           React.createElement('button', { onClick: () => setCurrentView('enhancements'), className: `nav-button ${currentView === 'enhancements' ? 'active' : ''}` }, '🚀', React.createElement('span', null, '강화')),
+                           React.createElement('button', { onClick: () => setCurrentView('gacha'), className: `nav-button ${currentView === 'gacha' ? 'active' : ''}` }, '🎁', React.createElement('span', null, '뽑기')),
+                           React.createElement('button', { onClick: () => setCurrentView('missions'), className: `nav-button ${currentView === 'missions' ? 'active' : ''}` }, '🎯', React.createElement('span', null, '미션')),
+                           React.createElement('button', { onClick: () => setCurrentView('treasures'), className: `nav-button ${currentView === 'treasures' ? 'active' : ''}` }, '💎', React.createElement('span', null, '보물'))
                         )
                     )
                 );
@@ -1034,7 +949,7 @@
                     React.createElement('header', { className: 'p-4 flex items-center justify-between border-b border-gray-700' },
                         React.createElement('div', {className: 'w-8'}),
                         React.createElement('h2', { className: 'text-xl font-bold' }, title),
-                        React.createElement('button', { onClick: onClose || (() => setActiveOverlay(null)), className: 'text-2xl font-bold w-8' }, '×')
+                        React.createElement('button', { onClick: onClose || (() => setCurrentView('main')), className: 'text-2xl font-bold w-8' }, '×')
                     ),
                     React.createElement('div', { className: 'flex-grow p-4 overflow-y-auto' }, children)
                  )
@@ -1102,8 +1017,7 @@
                                         React.createElement('div', {className:'flex flex-col items-center'},
                                             React.createElement('div', { className: "relative w-16 h-16 mx-auto opacity-70" }, React.createElement(item.Icon, null), React.createElement('div', { className: 'absolute inset-0 bg-black/70 rounded-lg flex items-center justify-center' }, '🔒')),
                                             React.createElement('p', { className: "font-bold mt-1 text-sm" }, item.name),
-                                            item.guildShop ? React.createElement('p', { className: 'text-xs mt-2 text-purple-300' }, '길드 상점')
-                                            : item.unlockCost ? React.createElement('button', { onClick: () => handleUnlock(type, item.id), disabled: playerData.currency < item.unlockCost, className: "w-full mt-2 ui-button text-xs py-1 px-2" }, `${item.unlockCost} J`) 
+                                            item.unlockCost ? React.createElement('button', { onClick: () => handleUnlock(type, item.id), disabled: playerData.currency < item.unlockCost, className: "w-full mt-2 ui-button text-xs py-1 px-2" }, `${item.unlockCost} J`) 
                                             : React.createElement('p', { className: 'text-xs mt-2' }, '획득 필요')
                                         )
                                 );
@@ -1111,10 +1025,21 @@
                         )
                     )
                 );
+                const selectedCharacter = CHARACTERS[selectedCharId];
+                const selectedPet = PETS[selectedPetId];
                  return renderOverlay('팀 편성',
-                    React.createElement('div', { className: 'flex h-full gap-4' },
-                        renderList(CHARACTERS, 'character'),
-                        renderList(PETS, 'pet')
+                    React.createElement('div', { className: 'flex flex-col h-full' },
+                        React.createElement('div', { className: 'flex h-2/3 gap-4' },
+                            renderList(CHARACTERS, 'character'),
+                            renderList(PETS, 'pet')
+                        ),
+                        React.createElement('div', { className: 'flex-grow mt-4 p-4 bg-black/30 rounded-lg border border-gray-700 overflow-y-auto' },
+                            React.createElement('h3', { className: 'text-lg font-bold text-cyan-300' }, selectedCharacter.name),
+                            React.createElement('p', { className: 'text-sm text-gray-300' }, selectedCharacter.description),
+                            React.createElement('div', { className: 'my-2 border-t border-gray-600' }),
+                            React.createElement('h3', { className: 'text-lg font-bold text-cyan-300' }, selectedPet.name),
+                            React.createElement('p', { className: 'text-sm text-gray-300' }, selectedPet.description)
+                        )
                     )
                  );
             };
@@ -1192,85 +1117,8 @@
                             React.createElement('p', { className: 'text-3xl font-bold text-yellow-300 my-2' }, `x ${playerData.gachaChests || 0}`),
                             React.createElement('button', { onClick: handleDrawGacha, disabled: (playerData.gachaChests || 0) < 1, className: "ui-button" }, "1개 열기")
                         )
-                ), () => { setGachaState('idle'); setGachaResult(null); setActiveOverlay(null); }
+                ), () => { setGachaState('idle'); setGachaResult(null); setCurrentView('main'); }
             );
-
-            const renderGuild = () => {
-                const guild = playerData.guild;
-
-                const handleBuyGuildItem = (itemType, itemId, cost) => {
-                    setPlayerData(prev => {
-                        if (prev.guildTokens < cost) return prev;
-                        const newData = JSON.parse(JSON.stringify(prev));
-                        if(itemType === 'character' && !newData.characters[itemId]) {
-                            newData.guildTokens -= cost;
-                            newData.characters[itemId] = { level: 1, transcendence: 0 };
-                        } else if(itemType === 'pet' && !newData.pets[itemId]) {
-                            newData.guildTokens -= cost;
-                            newData.pets[itemId] = { level: 1 };
-                        }
-                        return newData;
-                    });
-                };
-                
-                const renderRaid = () => (
-                    React.createElement('div', {className: 'flex flex-col items-center text-center'},
-                        React.createElement('h3', {className: 'text-2xl font-bold text-red-400 glowing-text'}, '길드 레이드'),
-                        React.createElement('p', {className: 'text-sm text-gray-400 mb-4'}, '길드원과 협력하여 보스를 처치하세요!'),
-                        React.createElement('div', {className: 'w-48 h-48 my-4', style: { animation: 'raid-boss-idle 3s ease-in-out infinite' }},
-                           React.createElement(SvgIconWrapper, { color: '#f00', filterId: 'raid-boss-glow' },
-                             React.createElement('path', { d: "M50 10 C 20 20, 20 80, 50 90 S 80 80, 80 20 Z", fill: '#400' }),
-                             React.createElement('path', { d: "M30 40 L70 40 L50 60 Z", fill: 'red' }),
-                             React.createElement('circle', { cx: 35, cy: 30, r: 5, fill: 'yellow' }),
-                             React.createElement('circle', { cx: 65, cy: 30, r: 5, fill: 'yellow' })
-                           )
-                        ),
-                        React.createElement('div', {className: 'w-full max-w-sm'},
-                          React.createElement('p', {className: 'font-bold'}, `보스 체력: ${guild.raidBossHealth.toLocaleString()} / ${guild.raidBossMaxHealth.toLocaleString()}`),
-                          React.createElement('div', { className: "progress-bar-container mt-1" }, React.createElement('div', { className: "h-4 progress-bar boss-health-bar", style: { width: `${(guild.raidBossHealth / guild.raidBossMaxHealth) * 100}%` } })),
-                        ),
-                        React.createElement('p', {className: 'mt-4 text-lg'}, `오늘 남은 공격 횟수: ${guild.raidAttempts}`),
-                        React.createElement('p', {className: 'text-sm text-gray-300'}, `나의 마지막 기여도: ${guild.lastRaidContribution.toLocaleString()}`),
-                        React.createElement('button', {onClick: () => startGame(true), disabled: guild.raidAttempts < 1, className: 'ui-button raid-button mt-6'}, '레이드 시작')
-                    )
-                );
-                
-                const renderShop = () => {
-                    const shopItems = [
-                        { type: 'character', id: 'char17', cost: 500 },
-                        { type: 'pet', id: 'pet17', cost: 400 },
-                    ];
-                    return React.createElement('div', {className: 'flex flex-col gap-4'},
-                       shopItems.map(shopItem => {
-                           const item = shopItem.type === 'character' ? CHARACTERS[shopItem.id] : PETS[shopItem.id];
-                           const isUnlocked = shopItem.type === 'character' ? !!playerData.characters[item.id] : !!playerData.pets[item.id];
-                           return React.createElement('div', {key: item.id, className: 'flex items-center justify-between p-2 bg-black/30 rounded-lg border border-gray-700'},
-                             React.createElement('div', {className: 'flex items-center gap-3'},
-                               React.createElement(item.Icon, {className: 'w-12 h-12'}),
-                               React.createElement('div', null,
-                                 React.createElement('p', {className: 'font-bold'}, item.name),
-                                 React.createElement('p', {className: 'text-xs text-gray-400'}, item.description)
-                               )
-                             ),
-                             React.createElement('button', {onClick: () => handleBuyGuildItem(shopItem.type, shopItem.id, shopItem.cost), disabled: isUnlocked || playerData.guildTokens < shopItem.cost, className: 'ui-button text-sm'},
-                               isUnlocked ? '보유중' : `${shopItem.cost} 🛡️`
-                             )
-                           );
-                       })
-                    );
-                };
-
-                return renderOverlay('길드',
-                    React.createElement('div', {className: 'flex flex-col h-full'},
-                       React.createElement('div', {className: 'flex justify-center border-b border-gray-700 mb-4'},
-                         React.createElement('button', {onClick: () => setGuildActiveTab('raid'), className: `tab-button ${guildActiveTab === 'raid' && 'active'}`}, '레이드'),
-                         React.createElement('button', {onClick: () => setGuildActiveTab('shop'), className: `tab-button ${guildActiveTab === 'shop' && 'active'}`}, '상점')
-                       ),
-                       guildActiveTab === 'raid' && renderRaid(),
-                       guildActiveTab === 'shop' && renderShop()
-                    )
-                );
-            };
 
             const renderGame = () => {
                 const player = playerStateRef.current; if (!player) return null;
@@ -1280,32 +1128,25 @@
                 let playerTransform = ''; if(player.isBlasting) playerTransform = `translateX(${Math.random()*10 - 5}px)`;
                 const character = CHARACTERS[selectedCharId];
                 const pet = PETS[selectedPetId];
-                const hasActiveSkill = character.skill === 'laser_beam' || pet.skill === 'emp_blast' || character.skill === 'shadow_pact' || character.skill === 'protective_aura';
+                const hasActiveSkill = character.skill === 'laser_beam' || pet.skill === 'emp_blast' || character.skill === 'shadow_pact';
 
                 return React.createElement('div', { className: "relative w-full h-full overflow-hidden" },
                     hitFlash && React.createElement('div', { className: "hit-flash-overlay" }),
                     gameState.isLastDash && React.createElement('div', { className: "last-dash-overlay" }),
                     gameState.isFeverTime && React.createElement('div', { className: "fever-active-overlay" }),
                     React.createElement('div', { className: "absolute top-0 left-0", style: { width: WORLD_WIDTH, height: WORLD_HEIGHT } },
-                        bossState.isActive && React.createElement('div', { className: "absolute", style: { left: bossState.pos.x, top: bossState.pos.y, width: 200, height: 200, animation: 'boss-idle 2s ease-in-out infinite' }}, React.createElement(BossIcon, null)),
                         React.createElement('div', { className: `absolute ${playerClass}`, style: { left: player.pos.x, top: player.pos.y, width: player.size.x, height: player.size.y, transform: playerTransform, transition: 'width 0.1s, height 0.1s' } },
                            React.createElement(CurrentCharacterIcon, null),
-                           player.hasShield && React.createElement('div', { className: 'shield-effect' }),
-                           player.activeEffects['protective_aura'] > 0 && React.createElement('div', { className: 'paladin-aura-effect' })
+                           player.hasShield && React.createElement('div', { className: 'shield-effect' })
                         ),
                         gameObjectsRef.current.map(obj => React.createElement('div', { key: obj.id, className: `absolute ${obj.isHighlighted ? 'obstacle-highlight' : ''}`, style: { left: obj.pos.x, top: obj.pos.y, width: obj.size.x, height: obj.size.y } }, React.createElement(obj.Icon, null))),
                         React.createElement('div', { className: "absolute bottom-0 left-0 w-full bg-cyan-800", style: { height: GROUND_HEIGHT, boxShadow: '0 -10px 20px rgba(0, 255, 255, 0.5)' } })
                     ),
                     React.createElement('div', { className: "absolute top-2 left-4 right-4 text-white font-bold flex flex-col gap-2" },
-                         bossState.isActive && React.createElement('div', null,
-                            React.createElement('p', {className: 'text-center text-red-400 text-lg font-black glowing-text mb-1'}, 'BOSS'),
-                            React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-4 progress-bar boss-health-bar", style: { width: `${(bossState.health / bossState.maxHealth) * 100}%` } }))
-                         ),
                          React.createElement('div', { className: "flex items-center gap-4"},
                             React.createElement('div', { className: 'text-2xl' }, `SCORE: ${gameState.score}`),
                             React.createElement('div', { className: 'flex-grow flex flex-col gap-1' },
-                                !gameState.isRaidRun && React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-3 progress-bar health-bar", style: { width: `${(player.health / player.maxHealth) * 100}%` } })),
-                                React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-2 progress-bar fever-bar", style: { width: `${(gameState.feverGauge / FEVER_GAUGE_MAX) * 100}%` } }))
+                                React.createElement('div', { className: "progress-bar-container" }, React.createElement('div', { className: "h-3 progress-bar health-bar", style: { width: `${(player.health / player.maxHealth) * 100}%` } }))
                             ),
                             React.createElement('button', {onClick: togglePause, className: "w-10 h-10 p-1 flex-shrink-0"}, 
                               React.createElement('svg', { viewBox: "0 0 100 100", fill: "white" }, 
@@ -1315,9 +1156,13 @@
                             )
                         )
                     ),
-                    React.createElement('div', { className: "control-button left-4", onMouseDown: handleJump, onMouseUp: handleJumpRelease, onTouchStart: (e) => { e.preventDefault(); handleJump(); }, onTouchEnd: (e) => { e.preventDefault(); handleJumpRelease(); } }, React.createElement('span', { className: "text-5xl text-white/80" }, "↑")),
-                    React.createElement('div', { className: "control-button right-4", onMouseDown: () => handleSlide(true), onMouseUp: () => handleSlide(false), onTouchStart: (e) => { e.preventDefault(); handleSlide(true); }, onTouchEnd: (e) => { e.preventDefault(); handleSlide(false); } }, React.createElement('span', { className: "text-5xl text-white/80" }, "↓")),
-                    hasActiveSkill && React.createElement('button', { className: "control-button skill-button", onClick: handleActiveSkill, disabled: gameState.activeSkillCooldown > 0}, 
+                    React.createElement('div', { className: 'jump-indicator-container' },
+                       React.createElement('div', { className: `jump-indicator ${player.jumpCount >= 1 ? 'used' : ''}`}),
+                       React.createElement('div', { className: `jump-indicator ${player.jumpCount >= 2 ? 'used' : ''}`})
+                    ),
+                    React.createElement('div', { className: `control-button left-4`, onMouseDown: handleJump, onMouseUp: handleJumpRelease, onTouchStart: (e) => { e.preventDefault(); handleJump(); }, onTouchEnd: (e) => { e.preventDefault(); handleJumpRelease(); } }, React.createElement('span', { className: "text-5xl text-white/80" }, "↑")),
+                    React.createElement('div', { className: `control-button right-4 ${player.isJumping ? 'opacity-50' : ''}`, onMouseDown: () => handleSlide(true), onMouseUp: () => handleSlide(false), onTouchStart: (e) => { e.preventDefault(); handleSlide(true); }, onTouchEnd: (e) => { e.preventDefault(); handleSlide(false); } }, React.createElement('span', { className: "text-5xl text-white/80" }, "↓")),
+                    hasActiveSkill && React.createElement('button', { className: `control-button skill-button ${gameState.activeSkillCooldown <= 0 ? 'ready' : ''}`, onClick: handleActiveSkill, disabled: gameState.activeSkillCooldown > 0}, 
                         React.createElement('span', { className: "text-4xl text-white/80" }, "⚡️"),
                         gameState.activeSkillCooldown > 0 && React.createElement('div', {className: 'cooldown-overlay'}, Math.ceil(gameState.activeSkillCooldown))
                     )
@@ -1326,10 +1171,10 @@
 
             const renderGameOver = () => React.createElement('div', { className: "main-overlay overlay-fade-in items-center justify-center p-4" },
                 React.createElement('div', { className: "bg-slate-800/80 border-2 border-cyan-400 rounded-2xl p-8 text-center shadow-lg shadow-cyan-500/20 fade-in w-full max-w-md" },
-                    React.createElement('h2', { className: "text-5xl font-black text-red-500 glowing-text" }, gameState.isRaidRun ? "RAID COMPLETE" : "GAME OVER"),
-                    React.createElement('p', { className: "mt-4 text-2xl" }, gameState.isRaidRun ? "Boss Damage:" : "Final Score:", React.createElement('span', { className: "text-cyan-300 font-bold" }, gameState.isRaidRun ? Math.floor(gameState.score / 5).toLocaleString() : gameState.score)),
-                    !gameState.isRaidRun && React.createElement('p', { className: "mt-2 text-xl" }, "High Score: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, playerData.highScore)),
-                    React.createElement('p', { className: "mt-2 text-xl" }, gameState.isRaidRun ? "Earned Guild Tokens:" : "Earned Jellies:", React.createElement('span', { className: "text-yellow-300 font-bold" }, `+${gameState.isRaidRun ? (Math.floor(gameState.score / 500) + 10) : Math.floor(gameState.score / 10)}`)),
+                    React.createElement('h2', { className: "text-5xl font-black text-red-500 glowing-text" }, "GAME OVER"),
+                    React.createElement('p', { className: "mt-4 text-2xl" }, "Final Score: ", React.createElement('span', { className: "text-cyan-300 font-bold" }, gameState.score)),
+                    React.createElement('p', { className: "mt-2 text-xl" }, "High Score: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, playerData.highScore)),
+                    React.createElement('p', { className: "mt-2 text-xl" }, "Earned Jellies: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, `+${Math.floor(inGameStatsRef.current.jellies)}`)),
                     React.createElement('button', { onClick: () => setGameState(prev => ({ ...prev, status: 'menu' })), className: "mt-8 px-8 py-3 ui-button" }, "메인 메뉴")
                 )
             );
@@ -1342,19 +1187,25 @@
                 )
             );
             
+            const currentOverlay = () => {
+              switch(currentView) {
+                case 'team': return renderTeamSelection();
+                case 'enhancements': return renderEnhancements();
+                case 'missions': return renderMissions();
+                case 'treasures': return renderTreasures();
+                case 'gacha': return renderGacha();
+                default: return null;
+              }
+            };
+
             return React.createElement('div', { className: "relative w-screen h-screen bg-black text-white flex items-center justify-center overflow-hidden font-sans antialiased select-none" },
                 React.createElement('div', { className: "scrolling-background", style: { filter: `hue-rotate(${ (gameState.worldLevel -1) * 60 }deg)` } }),
                  React.createElement('div', { className: "relative overflow-hidden bg-black/20", style: { width: WORLD_WIDTH, height: WORLD_HEIGHT, transform: `scale(${scale})`, transformOrigin: 'center center' } },
                     gameState.status === 'menu' && renderMenu(),
-                    (gameState.status === 'playing' || gameState.status === 'gameOver' || gameState.status === 'boss_battle') && renderGame(),
+                    (gameState.status === 'playing' || gameState.status === 'gameOver') && renderGame(),
                     gameState.status === 'gameOver' && renderGameOver(),
                     gameState.isPaused && renderPauseMenu(),
-                    activeOverlay === 'team' && renderTeamSelection(),
-                    activeOverlay === 'enhancements' && renderEnhancements(),
-                    activeOverlay === 'missions' && renderMissions(),
-                    activeOverlay === 'treasures' && renderTreasures(),
-                    activeOverlay === 'gacha' && renderGacha(),
-                    activeOverlay === 'guild' && renderGuild()
+                    currentOverlay()
                 )
             );
         };
