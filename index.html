@@ -69,8 +69,6 @@
       /* Visual Effects */
       @keyframes hit-flash-anim { 0% { opacity: 0.5; } 100% { opacity: 0; } }
       .hit-flash-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: red; pointer-events: none; opacity: 0; animation: hit-flash-anim 0.2s ease-out; z-index: 100; }
-      @keyframes last-dash-anim { 0%, 100% { box-shadow: inset 0 0 50px 20px rgba(255, 0, 0, 0.4); } 50% { box-shadow: inset 0 0 80px 30px rgba(255, 0, 0, 0.7); } }
-      .last-dash-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; animation: last-dash-anim 0.5s ease-in-out infinite; z-index: 90; }
       @keyframes fever-glow {
         0%, 100% {
           background: radial-gradient(circle, rgba(255, 235, 59, 0.2) 0%, rgba(255, 235, 59, 0) 70%);
@@ -86,7 +84,7 @@
       .shadow-form-effect { box-shadow: inset 0 0 20px 10px rgba(72, 61, 139, 0.8); filter: brightness(0.8) drop-shadow(0 0 10px #483d8b); }
       .obstacle-highlight { box-shadow: 0 0 20px 10px #ffdead; border: 2px solid #ffdead; border-radius: inherit; }
       
-      /* New Mobile UI Elements */
+      /* UI Elements */
       .ui-button {
         background-color: rgba(0, 255, 255, 0.2);
         border: 2px solid var(--glow-color);
@@ -112,15 +110,15 @@
         cursor: not-allowed;
         transform: scale(1);
       }
-       .transcend-button {
-        background-color: rgba(138, 43, 226, 0.4);
-        border: 2px solid #9370DB;
-        box-shadow: 0 0 15px #9370DB;
-       }
-       .transcend-button:hover, .transcend-button:active {
-        background-color: rgba(138, 43, 226, 0.6);
-        transform: scale(1.05);
-       }
+      .ui-button.danger {
+        background-color: rgba(255, 0, 0, 0.2);
+        border-color: var(--danger-glow-color);
+        text-shadow: 0 0 5px var(--danger-glow-color);
+      }
+      .ui-button.danger:hover, .ui-button.danger:active {
+        background-color: rgba(255, 0, 0, 0.4);
+        box-shadow: 0 0 15px var(--danger-glow-color);
+      }
       .selection-card {
         border: 2px solid #555;
         background: rgba(255,255,255,0.05);
@@ -250,6 +248,31 @@
         background: #555;
         box-shadow: none;
       }
+      .settings-button {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
+        width: 48px;
+        height: 48px;
+        color: #888;
+        transition: all 0.2s ease;
+      }
+      .settings-button:hover {
+        color: white;
+        transform: scale(1.1) rotate(45deg);
+      }
+      .text-input {
+        background-color: rgba(0,0,0,0.5);
+        border: 2px solid #555;
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: white;
+        transition: border-color 0.2s ease;
+      }
+      .text-input:focus {
+        outline: none;
+        border-color: var(--glow-color);
+      }
     </style>
   <script type="importmap">
 {
@@ -279,9 +302,11 @@
         const INITIAL_MAX_HEALTH = 100; const HEALTH_DECAY_RATE = 1; const OBSTACLE_DAMAGE = 25; 
         const INITIAL_GAME_SPEED = 350; const GAME_SPEED_INCREASE_RATE = 2; const MAX_GAME_SPEED = 750;
         const FEVER_GAUGE_MAX = 100; const FEVER_GAUGE_PER_JELLY = 5; const FEVER_DURATION = 8; const FEVER_OBSTACLE_SCORE = 100;
-        const LAST_DASH_DURATION = 3;
+        
         const GIANT_POTION_DURATION = 8; const BLAST_JELLY_DURATION = 1.5; const BLAST_JELLY_SPEED_MULTIPLIER = 2.5; const MAGNET_ITEM_DURATION = 10; const MAGNET_RADIUS = 250;
         const BOSS_MAX_HEALTH = 2500;
+        const MAX_PLAYER_LEVEL = 100;
+        const XP_FOR_LEVEL = (level) => level >= MAX_PLAYER_LEVEL ? Infinity : Math.floor(100 * Math.pow(1.5, level - 1));
 
         const SvgIconWrapper = ({ children, color, filterId, className }) => (
             React.createElement('svg', { viewBox: "0 0 100 100", xmlns: "http://www.w3.org/2000/svg", className: className || "w-full h-full", style: { filter: `url(#${filterId})` } },
@@ -294,40 +319,40 @@
         );
 
         const RAW_CHARACTERS = {
-            'char1': { id: 'char1', name: '네온 스트라이커', description: '기본에 충실한 밸런스형 런너입니다.', skill: 'none', maxLevel: 10, baseStat: 100, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#0ff", filterId: "char1-glow", className: className }, React.createElement('rect', { x: "25", y: "30", width: "50", height: "70", rx: "10", fill: "#0ff", stroke: "#fff", strokeWidth: "5" }), React.createElement('circle', { cx: "50", cy: "30", r: "20", fill: "#0ff", stroke: "#fff", strokeWidth: "5" })) },
-            'char2': { id: 'char2', name: '마젠타 팬텀', description: '더 높은 체력을 가지고 오래 버팁니다.', skill: 'extra_health', maxLevel: 10, baseStat: 120, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f0f", filterId: "char2-glow", className: className }, React.createElement('polygon', { points: "50,10 90,90 10,90", fill: "#f0f", stroke: "#fff", strokeWidth: "5" })) },
-            'char3': { id: 'char3', name: '볼텍스', description: '게임 시작 시 자석 효과를 가지고 시작합니다.', skill: 'start_magnet', maxLevel: 10, baseStat: 90, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#9400D3", filterId: "char3-glow", className: className }, React.createElement('path', { d: "M50 10 C 90 10, 90 90, 50 90 S 10 90, 10 10 C 10 10, 50 10, 50 10 Z", transform: "rotate(45 50 50)", fill: "none", stroke: "#9400D3", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "50", r: "10", fill: "#fff" })) },
-            'char4': { id: 'char4', name: '크로노', description: '체력이 50% 이하가 되면 게임 속도가 느려집니다.', skill: 'time_slow', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00fa9a", filterId: "char4-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "40", fill: "none", stroke: "#00fa9a", strokeWidth: "6", strokeDasharray: "10 5" }), React.createElement('path', { d: "M50 20 V50 H70", fill: "none", stroke: "#fff", strokeWidth: "6" })) },
-            'char5': { id: 'char5', name: '블레이즈', description: '게임 속도가 더 빠르지만, 점수 보너스를 얻습니다.', skill: 'high_speed', maxLevel: 10, baseStat: 80, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff4500", filterId: "char5-glow", className: className }, React.createElement('path', { d: "M50 10 L60 40 L90 45 L65 65 L70 95 L50 80 L30 95 L35 65 L10 45 L40 40 Z", fill: "#ff4500", stroke: "#fff", strokeWidth: "4" })) },
-            'char6': { id: 'char6', name: '클로버', description: '게임에 아이템이 더 자주 등장합니다.', skill: 'item_boost', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#32cd32", filterId: "char6-glow", className: className }, React.createElement('path', { d: "M50 25 C 30 5, 30 40, 50 50 C 70 40, 70 5, 50 25 Z", fill: "#32cd32" }), React.createElement('path', { d: "M75 50 C 95 30, 60 30, 50 50 C 60 70, 95 70, 75 50 Z", fill: "#32cd32" }), React.createElement('path', { d: "M50 75 C 30 95, 30 60, 50 50 C 70 60, 70 95, 50 75 Z", fill: "#32cd32" }), React.createElement('path', { d: "M25 50 C 5 30, 40 30, 50 50 C 40 70, 5 70, 25 50 Z", fill: "#32cd32" })) },
-            'char7': { id: 'char7', name: '시너지', description: '장착한 펫의 능력이 20% 향상됩니다.', skill: 'pet_boost', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#fafad2", filterId: "char7-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "none", stroke: "#fafad2", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "#fafad2" })) },
-            'char8': { id: 'char8', name: '피닉스', description: '최후의 질주 시간이 50% 증가합니다.', skill: 'last_dash_boost', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff8c00", filterId: "char8-glow", className: className }, React.createElement('path', { d: "M20 80 Q 50 20, 80 80 Q 50 50, 20 80 Z", fill: "#ff8c00" }), React.createElement('path', { d: "M30 70 Q 50 30, 70 70 Q 50 55, 30 70 Z", fill: "#ff4500", stroke:"#fff", strokeWidth:"2" })) },
-            'char9': { id: 'char9', name: '에코', description: '모든 아이템의 효과(회복량, 지속시간)가 2배가 됩니다.', skill: 'item_double_effect', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00ced1", filterId: "char9-glow", className: className }, React.createElement('path', { d: "M50 20 A 30 30 0 0 1 50 80 A 30 30 0 0 1 50 20 M50 35 A 15 15 0 0 1 50 65 A 15 15 0 0 1 50 35", fill: "none", stroke: "#00ced1", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "#fff" })) },
-            'char10': { id: 'char10', name: '리프트', description: '슬라이드 중에는 장애물에 피해를 입지 않습니다.', skill: 'slide_invincible', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#7b68ee", filterId: "char10-glow", className: className }, React.createElement('path', { d: "M20 80 L50 20 L80 80 H20 Z", fill: "#7b68ee", stroke: "#fff", strokeWidth: "4", transform: "skewX(-10)" }), React.createElement('path', { d: "M30 80 L50 40 L70 80", fill: "none", stroke: "#fff", strokeWidth: "3", opacity: "0.7" })) },
-            'char11': { id: 'char11', name: '글리치', description: '가끔씩 앞으로 순간이동하여 장애물을 통과합니다.', skill: 'random_teleport', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff00ff", filterId: "char11-glow", className: className }, React.createElement('text', { x: "50", y: "70", fontFamily: "monospace", fontSize: "60", textAnchor: "middle", fill: "#ff00ff", stroke:"#fff", strokeWidth: "2" }, "ERR")) },
-            'char12': { id: 'char12', name: '뱅커', description: '10초마다 현재 점수의 1%를 보너스로 얻습니다.', skill: 'interest_score', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00ff7f", filterId: "char12-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#00ff7f" }), React.createElement('text', { x: "50", y: "68", fontSize: "45", textAnchor: "middle", fill: "black", fontWeight: "bold" }, "$")) },
-            'char14': { id: 'char14', name: '리듬', description: '연속으로 5회 점프 시 추가 점수를 얻습니다.', skill: 'rhythm_bonus', maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff1493", filterId: "char14-glow", className: className }, React.createElement('path', { d: "M20 70 Q 35 40, 50 70 T 80 70", stroke: "#ff1493", strokeWidth: "6", fill: "none" }), React.createElement('path', { d: "M20 50 Q 35 20, 50 50 T 80 50", stroke: "#ff1493", strokeWidth: "6", fill: "none" })) },
-            'char15': { id: 'char15', name: '게이저', description: '액티브 스킬: 전방으로 파괴적인 레이저를 발사합니다.', skill: 'laser_beam', cooldown: 8, maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff6347", filterId: "char15-glow", className: className }, React.createElement('path', { d: "M50 20 L80 50 L50 80 L20 50 Z", fill: "#ff6347" }), React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "white" }), React.createElement('circle', { cx: "50", cy: "50", r: "8", fill: "red" })) },
-            'char16': { id: 'char16', name: '레이븐', description: '액티브 스킬: 체력을 소모하여 그림자 형태가 됩니다. 그림자 형태에서는 무적이며 젤리 점수가 2배가 됩니다.', skill: 'shadow_pact', cooldown: 20, maxLevel: 10, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#483d8b", filterId: "char16-glow", className: className }, React.createElement('path', { d: "M50 10 C 30 30, 20 70, 50 90 C 80 70, 70 30, 50 10 Z", fill: "#483d8b" }), React.createElement('path', { d: "M50 20 C 40 35, 35 60, 50 80 C 65 60, 60 35, 50 20 Z", fill: "#000" })) },
+            'char1': { id: 'char1', name: '네온 스트라이커', description: '기본에 충실한 밸런스형 런너입니다.', skill: 'none', baseStat: 100, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#0ff", filterId: "char1-glow", className: className }, React.createElement('rect', { x: "25", y: "30", width: "50", height: "70", rx: "10", fill: "#0ff", stroke: "#fff", strokeWidth: "5" }), React.createElement('circle', { cx: "50", cy: "30", r: "20", fill: "#0ff", stroke: "#fff", strokeWidth: "5" })) },
+            'char2': { id: 'char2', name: '마젠타 팬텀', description: '더 높은 체력을 가지고 오래 버팁니다.', skill: 'extra_health', baseStat: 130, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f0f", filterId: "char2-glow", className: className }, React.createElement('polygon', { points: "50,10 90,90 10,90", fill: "#f0f", stroke: "#fff", strokeWidth: "5" })) },
+            'char3': { id: 'char3', name: '볼텍스', description: '게임 시작 시 자석 효과를 가지고 시작합니다.', skill: 'start_magnet', baseStat: 90, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#9400D3", filterId: "char3-glow", className: className }, React.createElement('path', { d: "M50 10 C 90 10, 90 90, 50 90 S 10 90, 10 10 C 10 10, 50 10, 50 10 Z", transform: "rotate(45 50 50)", fill: "none", stroke: "#9400D3", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "50", r: "10", fill: "#fff" })) },
+            'char4': { id: 'char4', name: '크로노', description: '체력이 50% 이하가 되면 게임 속도가 느려집니다.', skill: 'time_slow', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00fa9a", filterId: "char4-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "40", fill: "none", stroke: "#00fa9a", strokeWidth: "6", strokeDasharray: "10 5" }), React.createElement('path', { d: "M50 20 V50 H70", fill: "none", stroke: "#fff", strokeWidth: "6" })) },
+            'char5': { id: 'char5', name: '블레이즈', description: '게임 속도가 더 빠르지만, 점수 보너스를 얻습니다.', skill: 'high_speed', baseStat: 80, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff4500", filterId: "char5-glow", className: className }, React.createElement('path', { d: "M50 10 L60 40 L90 45 L65 65 L70 95 L50 80 L30 95 L35 65 L10 45 L40 40 Z", fill: "#ff4500", stroke: "#fff", strokeWidth: "4" })) },
+            'char6': { id: 'char6', name: '클로버', description: '게임에 아이템이 더 자주 등장합니다.', skill: 'item_boost', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#32cd32", filterId: "char6-glow", className: className }, React.createElement('path', { d: "M50 25 C 30 5, 30 40, 50 50 C 70 40, 70 5, 50 25 Z", fill: "#32cd32" }), React.createElement('path', { d: "M75 50 C 95 30, 60 30, 50 50 C 60 70, 95 70, 75 50 Z", fill: "#32cd32" }), React.createElement('path', { d: "M50 75 C 30 95, 30 60, 50 50 C 70 60, 70 95, 50 75 Z", fill: "#32cd32" }), React.createElement('path', { d: "M25 50 C 5 30, 40 30, 50 50 C 40 70, 5 70, 25 50 Z", fill: "#32cd32" })) },
+            'char7': { id: 'char7', name: '시너지', description: '장착한 펫의 능력이 25% 향상됩니다.', skill: 'pet_boost', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#fafad2", filterId: "char7-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "none", stroke: "#fafad2", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "#fafad2" })) },
+            'char8': { id: 'char8', name: '피닉스', description: '체력이 25% 이하일 때, 단 한 번 강력한 보호막을 생성합니다.', skill: 'emergency_shield', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff8c00", filterId: "char8-glow", className: className }, React.createElement('path', { d: "M20 80 Q 50 20, 80 80 Q 50 50, 20 80 Z", fill: "#ff8c00" }), React.createElement('path', { d: "M30 70 Q 50 30, 70 70 Q 50 55, 30 70 Z", fill: "#ff4500", stroke:"#fff", strokeWidth:"2" })) },
+            'char9': { id: 'char9', name: '에코', description: '모든 아이템의 효과(회복량, 지속시간)가 2배 이상 증가합니다.', skill: 'item_double_effect', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00ced1", filterId: "char9-glow", className: className }, React.createElement('path', { d: "M50 20 A 30 30 0 0 1 50 80 A 30 30 0 0 1 50 20 M50 35 A 15 15 0 0 1 50 65 A 15 15 0 0 1 50 35", fill: "none", stroke: "#00ced1", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "#fff" })) },
+            'char10': { id: 'char10', name: '리프트', description: '슬라이드 중에는 장애물에 피해를 입지 않습니다.', skill: 'slide_invincible', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#7b68ee", filterId: "char10-glow", className: className }, React.createElement('path', { d: "M20 80 L50 20 L80 80 H20 Z", fill: "#7b68ee", stroke: "#fff", strokeWidth: "4", transform: "skewX(-10)" }), React.createElement('path', { d: "M30 80 L50 40 L70 80", fill: "none", stroke: "#fff", strokeWidth: "3", opacity: "0.7" })) },
+            'char11': { id: 'char11', name: '글리치', description: '가끔씩 앞으로 순간이동하여 장애물을 통과합니다.', skill: 'random_teleport', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff00ff", filterId: "char11-glow", className: className }, React.createElement('text', { x: "50", y: "70", fontFamily: "monospace", fontSize: "60", textAnchor: "middle", fill: "#ff00ff", stroke:"#fff", strokeWidth: "2" }, "ERR")) },
+            'char12': { id: 'char12', name: '뱅커', description: '10초마다 현재 점수의 1.2%를 보너스로 얻습니다.', skill: 'interest_score', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00ff7f", filterId: "char12-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#00ff7f" }), React.createElement('text', { x: "50", y: "68", fontSize: "45", textAnchor: "middle", fill: "black", fontWeight: "bold" }, "$")) },
+            'char14': { id: 'char14', name: '리듬', description: '연속으로 5회 점프 시 추가 점수를 얻습니다.', skill: 'rhythm_bonus', baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff1493", filterId: "char14-glow", className: className }, React.createElement('path', { d: "M20 70 Q 35 40, 50 70 T 80 70", stroke: "#ff1493", strokeWidth: "6", fill: "none" }), React.createElement('path', { d: "M20 50 Q 35 20, 50 50 T 80 50", stroke: "#ff1493", strokeWidth: "6", fill: "none" })) },
+            'char15': { id: 'char15', name: '게이저', description: '액티브 스킬: 전방으로 파괴적인 레이저를 발사합니다.', skill: 'laser_beam', cooldown: 7, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff6347", filterId: "char15-glow", className: className }, React.createElement('path', { d: "M50 20 L80 50 L50 80 L20 50 Z", fill: "#ff6347" }), React.createElement('circle', { cx: "50", cy: "50", r: "15", fill: "white" }), React.createElement('circle', { cx: "50", cy: "50", r: "8", fill: "red" })) },
+            'char16': { id: 'char16', name: '레이븐', description: '액티브 스킬: 체력을 소모하여 그림자 형태가 됩니다. 그림자 형태에서는 무적이며 젤리 점수가 2배가 됩니다.', skill: 'shadow_pact', cooldown: 20, baseStat: 100, unlockCost: 3000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#483d8b", filterId: "char16-glow", className: className }, React.createElement('path', { d: "M50 10 C 30 30, 20 70, 50 90 C 80 70, 70 30, 50 10 Z", fill: "#483d8b" }), React.createElement('path', { d: "M50 20 C 40 35, 35 60, 50 80 C 65 60, 60 35, 50 20 Z", fill: "#000" })) },
         };
         const CHARACTERS = Object.fromEntries(Object.entries(RAW_CHARACTERS).map(([id, char]) => [id, {...char, description: `${char.description} (기본 체력: ${char.baseStat})` }]));
 
         const PETS = {
-            'pet1': { id: 'pet1', name: '큐브', description: '일정 시간마다 체력 포션을 생성합니다.', skill: 'health_potion', maxLevel: 10, baseStat: 20, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#fff", filterId: "pet1-glow", className: className }, React.createElement('rect', { x: "20", y: "20", width: "60", height: "60", rx: "10", fill: "#fff", stroke: "#000", strokeWidth: "5", transform: "rotate(45 50 50)" })) },
-            'pet2': { id: 'pet2', name: '윙키', description: '젤리 획득 시 추가 점수를 줍니다.', skill: 'score_bonus', maxLevel: 10, baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff0", filterId: "pet2-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#ff0" }), React.createElement('path', { d: "M 35,40 Q 50,60 65,40", stroke: "black", strokeWidth: "5", fill: "none" })) },
-            'pet4': { id: 'pet4', name: '스파크', description: '젤리 획득 시 피버 게이지를 추가로 채웁니다.', skill: 'fever_boost', maxLevel: 10, baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffa500", filterId: "pet4-glow", className: className }, React.createElement('path', { d: "M50 10 L40 45 H60 L50 90 L60 55 H40 Z", fill: "#ffa500", stroke: "#fff", strokeWidth: "4" })) },
-            'pet5': { id: 'pet5', name: '제트', description: '체력이 0이 되면, 한 번 부활합니다 (체력 25%).', skill: 'revive', maxLevel: 1, baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#b0c4de", filterId: "pet5-glow", className: className }, React.createElement('path', { d: "M50 20 L70 40 L60 45 L80 65 L50 90 L20 65 L40 45 L30 40 Z", fill: "#b0c4de", stroke: "#fff", strokeWidth: "4" })) },
-            'pet6': { id: 'pet6', name: '마이더스', description: '게임 종료 시 획득하는 젤리가 증가합니다.', skill: 'currency_boost', maxLevel: 10, baseStat: 5, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffd700", filterId: "pet6-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#ffd700", stroke: "#fff", strokeWidth: "4" }), React.createElement('text', { x: "50", y: "65", fontSize: "40", textAnchor: "middle", fill: "black", fontWeight: "bold" }, "J")) },
-            'pet7': { id: 'pet7', name: '수호령', description: '5% 확률로 장애물 피해를 무시합니다.', skill: 'damage_negation', maxLevel: 10, baseStat: 5, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#add8e6", filterId: "pet7-glow", className: className }, React.createElement('path', { d: "M50 20 C 30 40, 30 70, 50 80 C 70 70, 70 40, 50 20 Z", fill: "#add8e6", opacity:"0.7" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "#fff" })) },
-            'pet8': { id: 'pet8', name: '듀라', description: '모든 아이템의 지속 시간이 25% 증가합니다.', skill: 'item_duration_boost', maxLevel: 1, baseStat: 0.25, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#cd853f", filterId: "pet8-glow", className: className }, React.createElement('path', { d: "M30 20 H70 L60 50 L70 80 H30 L40 50 Z", fill: "#cd853f", stroke: "#fff", strokeWidth: "4" })) },
-            'pet9': { id: 'pet9', name: '옵저버', description: '게임 종료 후, 미션 진행도가 10% 추가됩니다.', skill: 'mission_progress_boost', maxLevel: 1, baseStat: 0.1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#4682b4", filterId: "pet9-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#4682b4" }), React.createElement('circle', { cx: "50", cy: "50", r: "20", fill: "#fff" }), React.createElement('circle', { cx: "50", cy: "50", r: "10", fill: "#000" })) },
-            'pet10': { id: 'pet10', name: '골디', description: '일정 시간마다 보너스 젤리(큰 젤리)를 생성합니다.', skill: 'generate_bonus_jelly', maxLevel: 10, baseStat: 25, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#daa520", filterId: "pet10-glow", className: className }, React.createElement('rect', { x: "25", y: "35", width: "50", height: "30", rx: "5", fill: "#daa520", stroke: "#fff", strokeWidth: "4" }), React.createElement('circle', { cx: "50", cy: "50", r: "10", fill: "gold", stroke: "black", strokeWidth: "2" })) },
-            'pet11': { id: 'pet11', name: '페이서', description: '게임 속도 증가율이 15% 감소합니다.', skill: 'pace_keeper', maxLevel: 1, baseStat: 0.15, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#87ceeb", filterId: "pet11-glow", className: className }, React.createElement('path', { d: "M20 50 L40 30 L60 70 L80 50", stroke: "#87ceeb", strokeWidth: "6", fill: "none" })) },
-            'pet12': { id: 'pet12', name: '미믹', description: '아이템 획득 시 20% 확률로 복제합니다.', skill: 'copy_item', maxLevel: 1, baseStat: 0.2, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ba55d3", filterId: "pet12-glow", className: className }, React.createElement('circle', { cx: "35", cy: "50", r: "20", fill: "#ba55d3" }), React.createElement('circle', { cx: "65", cy: "50", r: "20", fill: "#ba55d3", opacity: "0.7" })) },
-            'pet13': { id: 'pet13', name: '블라스토이드', description: '젤리 50개를 모으면 작은 폭발을 일으킵니다.', skill: 'jelly_blast', maxLevel: 10, baseStat: 50, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#dc143c", filterId: "pet13-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#dc143c" }), React.createElement('path', { d: "M50 20 L55 45 L80 50 L55 55 L50 80 L45 55 L20 50 L45 45 Z", fill: "yellow" })) },
-            'pet14': { id: 'pet14', name: '스파키', description: '피버 게이지 30%를 가지고 시작합니다.', skill: 'fever_start_boost', maxLevel: 1, baseStat: 30, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f0e68c", filterId: "pet14-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "25", fill: "#f0e68c" }), React.createElement('path', { d: "M50 25 V75 M25 50 H75", stroke: "#fff", strokeWidth: "6" })) },
-            'pet15': { id: 'pet15', name: '펄스', description: '액티브 스킬: 화면의 모든 장애물을 파괴합니다.', skill: 'emp_blast', cooldown: 15, maxLevel: 10, baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00BFFF", filterId: "pet15-glow", className: className }, React.createElement('path', { d: "M50 20 A 30 30 0 0 1 50 80 A 30 30 0 0 1 50 20 M50 35 A 15 15 0 0 1 50 65 A 15 15 0 0 1 50 35", fill: "none", stroke: "#00BFFF", strokeWidth: "8" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "white" })) },
-            'pet16': { id: 'pet16', name: '오라클', description: '일정 시간마다 다음에 나타날 장애물을 미리 표시해줍니다.', skill: 'foresight', maxLevel: 10, baseStat: 15, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffdead", filterId: "pet16-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "none", stroke: "#ffdead", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "30", r: "8", fill: "#fff" })) },
+            'pet1': { id: 'pet1', name: '큐브', description: '일정 시간마다 체력 포션을 생성합니다.', skill: 'health_potion', baseStat: 20, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#fff", filterId: "pet1-glow", className: className }, React.createElement('rect', { x: "20", y: "20", width: "60", height: "60", rx: "10", fill: "#fff", stroke: "#000", strokeWidth: "5", transform: "rotate(45 50 50)" })) },
+            'pet2': { id: 'pet2', name: '윙키', description: '젤리 획득 시 추가 점수를 줍니다.', skill: 'score_bonus', baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ff0", filterId: "pet2-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#ff0" }), React.createElement('path', { d: "M 35,40 Q 50,60 65,40", stroke: "black", strokeWidth: "5", fill: "none" })) },
+            'pet4': { id: 'pet4', name: '스파크', description: '젤리 획득 시 피버 게이지를 추가로 채웁니다.', skill: 'fever_boost', baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffa500", filterId: "pet4-glow", className: className }, React.createElement('path', { d: "M50 10 L40 45 H60 L50 90 L60 55 H40 Z", fill: "#ffa500", stroke: "#fff", strokeWidth: "4" })) },
+            'pet5': { id: 'pet5', name: '제트', description: '체력이 0이 되면, 한 번 부활합니다 (체력 25%).', skill: 'revive', baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#b0c4de", filterId: "pet5-glow", className: className }, React.createElement('path', { d: "M50 20 L70 40 L60 45 L80 65 L50 90 L20 65 L40 45 L30 40 Z", fill: "#b0c4de", stroke: "#fff", strokeWidth: "4" })) },
+            'pet6': { id: 'pet6', name: '마이더스', description: '게임 종료 시 획득하는 젤리가 증가합니다.', skill: 'currency_boost', baseStat: 5, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffd700", filterId: "pet6-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#ffd700", stroke: "#fff", strokeWidth: "4" }), React.createElement('text', { x: "50", y: "65", fontSize: "40", textAnchor: "middle", fill: "black", fontWeight: "bold" }, "J")) },
+            'pet7': { id: 'pet7', name: '수호령', description: '5% 확률로 장애물 피해를 무시합니다.', skill: 'damage_negation', baseStat: 5, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#add8e6", filterId: "pet7-glow", className: className }, React.createElement('path', { d: "M50 20 C 30 40, 30 70, 50 80 C 70 70, 70 40, 50 20 Z", fill: "#add8e6", opacity:"0.7" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "#fff" })) },
+            'pet8': { id: 'pet8', name: '듀라', description: '모든 아이템의 지속 시간이 25% 증가합니다.', skill: 'item_duration_boost', baseStat: 0.25, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#cd853f", filterId: "pet8-glow", className: className }, React.createElement('path', { d: "M30 20 H70 L60 50 L70 80 H30 L40 50 Z", fill: "#cd853f", stroke: "#fff", strokeWidth: "4" })) },
+            'pet9': { id: 'pet9', name: '옵저버', description: '게임 종료 후, 미션 진행도가 10% 추가됩니다.', skill: 'mission_progress_boost', baseStat: 0.1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#4682b4", filterId: "pet9-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "35", fill: "#4682b4" }), React.createElement('circle', { cx: "50", cy: "50", r: "20", fill: "#fff" }), React.createElement('circle', { cx: "50", cy: "50", r: "10", fill: "#000" })) },
+            'pet10': { id: 'pet10', name: '골디', description: '일정 시간마다 보너스 젤리(큰 젤리)를 생성합니다.', skill: 'generate_bonus_jelly', baseStat: 25, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#daa520", filterId: "pet10-glow", className: className }, React.createElement('rect', { x: "25", y: "35", width: "50", height: "30", rx: "5", fill: "#daa520", stroke: "#fff", strokeWidth: "4" }), React.createElement('circle', { cx: "50", cy: "50", r: "10", fill: "gold", stroke: "black", strokeWidth: "2" })) },
+            'pet11': { id: 'pet11', name: '페이서', description: '게임 속도 증가율이 15% 감소합니다.', skill: 'pace_keeper', baseStat: 0.15, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#87ceeb", filterId: "pet11-glow", className: className }, React.createElement('path', { d: "M20 50 L40 30 L60 70 L80 50", stroke: "#87ceeb", strokeWidth: "6", fill: "none" })) },
+            'pet12': { id: 'pet12', name: '미믹', description: '아이템 획득 시 20% 확률로 복제합니다.', skill: 'copy_item', baseStat: 0.2, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ba55d3", filterId: "pet12-glow", className: className }, React.createElement('circle', { cx: "35", cy: "50", r: "20", fill: "#ba55d3" }), React.createElement('circle', { cx: "65", cy: "50", r: "20", fill: "#ba55d3", opacity: "0.7" })) },
+            'pet13': { id: 'pet13', name: '블라스토이드', description: '젤리 50개를 모으면 작은 폭발을 일으킵니다.', skill: 'jelly_blast', baseStat: 50, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#dc143c", filterId: "pet13-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#dc143c" }), React.createElement('path', { d: "M50 20 L55 45 L80 50 L55 55 L50 80 L45 55 L20 50 L45 45 Z", fill: "yellow" })) },
+            'pet14': { id: 'pet14', name: '스파키', description: '피버 게이지 30%를 가지고 시작합니다.', skill: 'fever_start_boost', baseStat: 30, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#f0e68c", filterId: "pet14-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "25", fill: "#f0e68c" }), React.createElement('path', { d: "M50 25 V75 M25 50 H75", stroke: "#fff", strokeWidth: "6" })) },
+            'pet15': { id: 'pet15', name: '펄스', description: '액티브 스킬: 화면의 모든 장애물을 파괴합니다.', skill: 'emp_blast', cooldown: 15, baseStat: 1, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#00BFFF", filterId: "pet15-glow", className: className }, React.createElement('path', { d: "M50 20 A 30 30 0 0 1 50 80 A 30 30 0 0 1 50 20 M50 35 A 15 15 0 0 1 50 65 A 15 15 0 0 1 50 35", fill: "none", stroke: "#00BFFF", strokeWidth: "8" }), React.createElement('circle', { cx: "50", cy: "50", r: "5", fill: "white" })) },
+            'pet16': { id: 'pet16', name: '오라클', description: '일정 시간마다 다음에 나타날 장애물을 미리 표시해줍니다.', skill: 'foresight', baseStat: 15, unlockCost: 1000, Icon: ({ className }) => React.createElement(SvgIconWrapper, { color: "#ffdead", filterId: "pet16-glow", className: className }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "none", stroke: "#ffdead", strokeWidth: "6" }), React.createElement('circle', { cx: "50", cy: "30", r: "8", fill: "#fff" })) },
         };
         
         const PARTNER_BONUSES = {
@@ -340,7 +365,7 @@
         };
 
         const MISSIONS = [
-            { id: 'm1', description: '젤리 500개 수집', type: 'collect_jellies', target: 500, reward: { currency: 100, gachaChests: 0 } }, { id: 'm2', description: '1,000m 달리기', type: 'run_distance', target: 1000, reward: { currency: 100, gachaChests: 0 } }, { id: 'm3', description: '장애물 20개 파괴', type: 'destroy_obstacles', target: 20, reward: { currency: 150, gachaChests: 0 } }, { id: 'm4', description: '점프 100번 하기', type: 'jump_count', target: 100, reward: { currency: 100, gachaChests: 0 } }, { id: 'm5', description: '피버 타임 5번 발동', type: 'fever_count', target: 5, reward: { currency: 200, gachaChests: 1 } }, { id: 'm6', description: '한 게임에서 10,000점 달성', type: 'single_run_score', target: 10000, reward: { currency: 250, gachaChests: 0 } }, { id: 'm7', description: '젤리 2,500개 수집', type: 'collect_jellies', target: 2500, reward: { currency: 300, gachaChests: 0 } }, { id: 'm8', description: '5,000m 달리기', type: 'run_distance', target: 5000, reward: { currency: 300, gachaChests: 0 } }, { id: 'm9', description: '아이템 25개 사용', type: 'use_items', target: 25, reward: { currency: 200, gachaChests: 0 } }, { id: 'm10', description: '총 50,000점 누적', type: 'total_score', target: 50000, reward: { currency: 500, gachaChests: 1 } },
+            { id: 'm1', description: '젤리 500개 수집', type: 'collect_jellies', target: 500, reward: { currency: 100, gachaChests: 0 } }, { id: 'm2', description: '1,000m 달리기', type: 'run_distance', target: 1000, reward: { currency: 100, gachaChests: 0 } }, { id: 'm3', description: '장애물 20개 파괴', type: 'destroy_obstacles', target: 20, reward: { currency: 150, gachaChests: 0 } }, { id: 'm4', description: '점프 100번 하기', type: 'jump_count', target: 100, reward: { currency: 100, gachaChests: 0 } }, { id: 'm5', description: '피버 타임 5번 발동', type: 'fever_count', target: 5, reward: { currency: 2700, gachaChests: 0 } }, { id: 'm6', description: '한 게임에서 10,000점 달성', type: 'single_run_score', target: 10000, reward: { currency: 250, gachaChests: 0 } }, { id: 'm7', description: '젤리 2,500개 수집', type: 'collect_jellies', target: 2500, reward: { currency: 300, gachaChests: 0 } }, { id: 'm8', description: '5,000m 달리기', type: 'run_distance', target: 5000, reward: { currency: 300, gachaChests: 0 } }, { id: 'm9', description: '아이템 25개 사용', type: 'use_items', target: 25, reward: { currency: 200, gachaChests: 0 } }, { id: 'm10', description: '총 50,000점 누적', type: 'total_score', target: 50000, reward: { currency: 3000, gachaChests: 0 } },
         ];
         
         const ENHANCEMENTS = {
@@ -348,9 +373,14 @@
         };
         const ENHANCEMENT_COST = (level, reduction = 0) => Math.floor(500 * Math.pow(1.2, level) * (1 - reduction));
 
-        const LEVEL_UP_COST = (level, reduction = 0) => Math.floor((100 * Math.pow(level, 1.5)) * (1 - reduction));
+        const LEVEL_UP_COST = (level, reduction = 0) => Math.floor((100 * Math.pow(1.25, level)) * (1 - reduction));
+        const TREASURE_LEVEL_UP_COST = (level, reduction = 0) => Math.floor((200 * Math.pow(1.3, level)) * (1 - reduction));
+        const GACHA_COST = 5000;
 
-        const getCharacterStat = (char, level) => char.baseStat + (level - 1) * 10;
+        const getCharacterStat = (char, level) => {
+            return char.baseStat + (level - 1) * 15;
+        };
+
         const getPetStat = (pet, level, isSynergy) => {
             let baseStat = 0;
             switch(pet.skill) {
@@ -362,12 +392,19 @@
                 case 'generate_bonus_jelly': baseStat = Math.max(10, pet.baseStat - (level - 1) * 1.5); break;
                 case 'jelly_blast': baseStat = Math.max(20, pet.baseStat - (level - 1) * 3); break;
                 case 'foresight': baseStat = Math.max(5, pet.baseStat - (level - 1)); break;
-                case 'powerup_boost': baseStat = pet.baseStat + (level - 1); break;
+                case 'revive': baseStat = 0.25 + (level - 1) * 0.01; break;
+                case 'item_duration_boost': baseStat = 0.25 + (level - 1) * 0.015; break;
+                case 'mission_progress_boost': baseStat = 0.1 + (level - 1) * 0.01; break;
+                case 'pace_keeper': baseStat = 0.15 + (level - 1) * 0.005; break;
+                case 'copy_item': baseStat = 0.2 + (level - 1) * 0.01; break;
+                case 'fever_start_boost': baseStat = 30 + (level - 1) * 2; break;
+                case 'emp_blast': baseStat = pet.baseStat; break;
                 default: baseStat = pet.baseStat; break;
             }
             if (isSynergy) {
-                 if (['health_potion', 'generate_bonus_jelly', 'jelly_blast', 'foresight'].includes(pet.skill)) return baseStat * 0.8;
-                 return baseStat * 1.2;
+                 let boost = 1.25;
+                 if (['health_potion', 'generate_bonus_jelly', 'jelly_blast', 'foresight'].includes(pet.skill)) return baseStat * (2 - boost);
+                 return baseStat * boost;
             }
             return baseStat;
         };
@@ -390,7 +427,6 @@
         const BlastJellyIcon = () => React.createElement(SvgIconWrapper, { color: "#ff8c00", filterId: "blast-glow" }, React.createElement('circle', { cx: "50", cy: "50", r: "30", fill: "#ff8c00" }), React.createElement('path', { d: "M50,20 L55,45 L80,50 L55,55 L50,80 L45,55 L20,50 L45,45 Z", fill: "yellow" }));
         const MagnetItemIcon = () => React.createElement(SvgIconWrapper, { color: "#00f", filterId: "magnet-glow" }, React.createElement('path', { d: "M25 80 V 50 A 25 25 0 0 1 75 50 V 80", stroke: "#00f", strokeWidth: "15", fill: "none", strokeLinecap: "round" }), React.createElement('rect', { x: "15", y: "80", width: "20", height: "10", fill: "red" }), React.createElement('rect', { x: "65", y: "80", width: "20", height: "10", fill: "white" }));
         
-        // New Boss Battle Icons
         const BossIcon = () => React.createElement('div', {className: 'w-full h-full'}, React.createElement(SvgIconWrapper, { color: "#f0f", filterId: "boss-glow" }, 
            React.createElement('path', { d: "M 50,10 L 90,40 L 80,90 L 20,90 L 10,40 Z", fill: "#333", stroke: "#f0f", strokeWidth: "4" }),
            React.createElement('circle', { cx: "50", cy: "45", r: "15", fill: "red", stroke: "white", strokeWidth: "2" }),
@@ -399,6 +435,9 @@
         const EnergyCoreIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-cyan-300", style: { boxShadow: '0 0 15px #0ff', animation: 'glow 1.5s ease-in-out infinite' } });
         const BossProjectileIcon = () => React.createElement('div', { className: "w-full h-full rounded-full bg-red-500", style: { boxShadow: '0 0 10px #f00' } });
         const GazerLaserIcon = () => React.createElement('div', { className: "w-full h-full rounded-lg bg-gradient-to-r from-red-500 via-orange-300 to-red-500", style: { boxShadow: '0 0 15px #ff6347' } });
+        const SettingsIcon = () => React.createElement('svg', { viewBox: "0 0 100 100", fill: "currentColor", xmlns: "http://www.w3.org/2000/svg" },
+            React.createElement('path', { d: "M89.1,54.6l-8.6-3.1c-0.4-1.6-1-3.2-1.7-4.7l4.5-7.9c1.2-2.1,0.7-4.8-1.1-6.4l-6.2-6.2 c-1.6-1.8-4.3-2.3-6.4-1.1l-7.9,4.5c-1.5-0.7-3.1-1.3-4.7-1.7l-3.1-8.6C53.3,7,51.1,5.6,48.7,5.6h-8.8c-2.4,0-4.5,1.4-5.4,3.5 l-3.1,8.6c-1.6,0.4-3.2,1-4.7,1.7l-7.9-4.5c-2.1-1.2-4.8-0.7-6.4,1.1l-6.2,6.2c-1.8,1.6-2.3,4.3-1.1,6.4l4.5,7.9 c-0.7,1.5-1.3,3.1-1.7,4.7l-8.6,3.1c-2.1,0.8-3.5,2.9-3.5,5.4v8.8c0,2.4,1.4,4.5,3.5,5.4l8.6,3.1c0.4,1.6,1,3.2,1.7,4.7l-4.5,7.9 c-1.2,2.1-0.7,4.8,1.1,6.4l6.2,6.2c1.6,1.8,4.3,2.3,6.4,1.1l7.9-4.5c1.5,0.7,3.1,1.3,4.7,1.7l3.1,8.6c0.8,2.1,2.9,3.5,5.4,3.5h8.8 c2.4,0,4.5-1.4,5.4-3.5l3.1-8.6c1.6-0.4,3.2-1,4.7-1.7l7.9,4.5c2.1,1.2,4.8,0.7,6.4-1.1l6.2-6.2c1.8-1.6,2.3,4.3,1.1-6.4 l-4.5-7.9c0.7-1.5,1.3-3.1,1.7-4.7l8.6-3.1c2.1-0.8,3.5-2.9,3.5-5.4v-8.8C92.6,57.5,91.2,55.4,89.1,54.6z M50,65.8 c-8.7,0-15.8-7.1-15.8-15.8S41.3,34.2,50,34.2S65.8,41.3,65.8,50S58.7,65.8,50,65.8z" })
+        );
 
         // --- END OF MERGED constants.tsx ---
 
@@ -421,10 +460,12 @@
             const [hitFlash, setHitFlash] = useState(false);
             const [scale, setScale] = useState(1);
             const [gachaResult, setGachaResult] = useState(null);
-            const [gachaState, setGachaState] = useState('idle'); // 'idle', 'animating', 'result'
+            const [gachaState, setGachaState] = useState('idle');
             const [teamDetailView, setTeamDetailView] = useState(null);
+            const [nicknameInput, setNicknameInput] = useState('');
+            const [levelUpInfo, setLevelUpInfo] = useState(null);
             
-            const [gameState, setGameState] = useState({ status: 'menu', score: 0, distance: 0, gameSpeed: INITIAL_GAME_SPEED, isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1 });
+            const [gameState, setGameState] = useState({ status: 'menu', score: 0, distance: 0, gameSpeed: INITIAL_GAME_SPEED, isFeverTime: false, feverGauge: 0, feverTimeLeft: 0, isPaused: false, activeSkillCooldown: 0, worldLevel: 1 });
             const [bossState, setBossState] = useState({ isActive: false, health: 0, maxHealth: BOSS_MAX_HEALTH, attackTimer: 0, pattern: 'idle', pos: {x:0,y:0} });
 
             const playerStateRef = useRef(null);
@@ -435,10 +476,19 @@
             const inGameStatsRef = useRef({ jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0, bossKills: 0 });
             const reviveUsedRef = useRef(false);
             const [, forceUpdate] = useState({});
-            const activeNavButton = useRef(null);
-            const [currentView, setCurrentView] = useState('main'); // main, team, enhancements, gacha, missions, treasures
+            const [currentView, setCurrentView] = useState('main');
 
             const activePartnerBonus = useMemo(() => { if (!playerData) return null; const comboKey = `${selectedCharId}_${selectedPetId}`; return PARTNER_BONUSES[comboKey] || null; }, [selectedCharId, selectedPetId, playerData]);
+            
+            const playerLevelBonuses = useMemo(() => {
+                if (!playerData) return { health: 0, score: 0, currency: 0 };
+                const level = playerData.level;
+                return {
+                    health: level * 2,
+                    score: level * 0.001,
+                    currency: level * 0.001
+                };
+            }, [playerData?.level]);
             
             useEffect(() => {
                 const handleResize = () => { const newScale = Math.min(window.innerWidth / WORLD_WIDTH, window.innerHeight / WORLD_HEIGHT); setScale(newScale); };
@@ -448,47 +498,61 @@
             }, []);
 
             useEffect(() => {
+                const COOKIE_NAME = 'ipkoDashDataV4_player_level';
                 try {
-                    const savedData = Cookies.get('ipkoDashDataV2_no_shield_frags');
+                    const savedData = Cookies.get(COOKIE_NAME);
                     if (savedData) {
                         const parsedData = JSON.parse(savedData);
                         const initialEnhancements = { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 };
-                        const initialMissions = {};
                         
                         parsedData.enhancements = { ...initialEnhancements, ...parsedData.enhancements };
-                        parsedData.missions = { ...initialMissions, ...parsedData.missions };
                         if (!parsedData.treasures) parsedData.treasures = [];
                         if (!parsedData.equippedTreasures) parsedData.equippedTreasures = [];
-                        if (!parsedData.gachaChests) parsedData.gachaChests = 1;
+                        if (!parsedData.memoryFragments) parsedData.memoryFragments = 0;
+                        if (!parsedData.treasureLevels) parsedData.treasureLevels = {};
+                        if (!parsedData.nickname) parsedData.nickname = 'Runner';
+                        if (parsedData.level === undefined) parsedData.level = 1;
+                        if (parsedData.xp === undefined) parsedData.xp = 0;
                         
-                        // Clean up old data fields
-                        delete parsedData.memoryFragments;
                         Object.keys(parsedData.characters).forEach(charId => {
+                           delete parsedData.characters[charId].awakened;
                            delete parsedData.characters[charId].transcendence;
                         });
+                        Object.keys(parsedData.pets).forEach(petId => {
+                           delete parsedData.pets[petId].awakened;
+                        });
                         
-                        // Remove removed characters/pets if they exist from old data
-                        if (parsedData.characters['char13']) delete parsedData.characters['char13'];
-                        if (parsedData.pets['pet3']) delete parsedData.pets['pet3'];
-
                         setPlayerData(parsedData);
+                        setNicknameInput(parsedData.nickname);
                     } else {
-                        const initialData = { characters: { 'char1': { level: 1 } }, pets: { 'pet1': { level: 1 } }, currency: 3000, highScore: 0, missions: {}, treasures: [], equippedTreasures: [], gachaChests: 3, enhancements: { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 } };
+                        const initialData = { level: 1, xp: 0, nickname: 'Runner', characters: { 'char1': { level: 1 } }, pets: { 'pet1': { level: 1 } }, currency: 5000, highScore: 0, missions: {}, treasures: [], equippedTreasures: [], memoryFragments: 0, enhancements: { health: 0, jelly_score: 0, fever_duration: 0, currency_gain: 0 }, treasureLevels: {} };
                         setPlayerData(initialData);
+                        setNicknameInput(initialData.nickname);
                     }
                 } catch (error) { console.error("Failed to load player data:", error); }
             }, []);
 
-            useEffect(() => { if (playerData) { try { Cookies.set('ipkoDashDataV2_no_shield_frags', JSON.stringify(playerData), { expires: 365 }); } catch (error) { console.error("Failed to save player data:", error); } } }, [playerData]);
+            useEffect(() => { if (playerData) { try { Cookies.set('ipkoDashDataV4_player_level', JSON.stringify(playerData), { expires: 365 }); } catch (error) { console.error("Failed to save player data:", error); } } }, [playerData]);
             
             const getTreasureValue = useCallback((type) => {
                 if (!playerData?.equippedTreasures) return 0;
-                return playerData.equippedTreasures.map(id => TREASURES[id]).filter(t => t && t.type === type).reduce((sum, t) => sum + t.value, 0);
-            }, [playerData?.equippedTreasures]);
+                return playerData.equippedTreasures
+                    .map(id => TREASURES[id])
+                    .filter(t => t && t.type === type)
+                    .reduce((sum, t) => {
+                        const level = playerData.treasureLevels?.[t.id] || 0;
+                        const multiplier = 1 + level * 0.15; // 15% bonus per level
+                        return sum + t.value * multiplier;
+                    }, 0);
+            }, [playerData?.equippedTreasures, playerData?.treasureLevels]);
             
             const updateMissions = useCallback((stats) => {
-                const isObserverEquipped = PETS[selectedPetId].skill === 'mission_progress_boost';
-                const observerBonus = PETS[selectedPetId].baseStat;
+                const petData = playerData.pets[selectedPetId] || { level: 1 };
+                const pet = PETS[selectedPetId];
+                const isObserverEquipped = pet.skill === 'mission_progress_boost';
+                const isSynergy = selectedCharId === 'char7';
+                
+                const observerBonus = isObserverEquipped ? getPetStat(pet, petData.level, isSynergy) : 0;
 
                 setPlayerData(prev => {
                     const newData = JSON.parse(JSON.stringify(prev));
@@ -512,75 +576,71 @@
                     });
                     return changed ? newData : prev;
                 });
-            }, [selectedPetId]);
+            }, [selectedPetId, selectedCharId, playerData]);
 
             const finalizeRun = useCallback(() => {
                 updateMissions(inGameStatsRef.current);
                 setPlayerData(prev => {
                     if (!prev) return null;
                     const newHighScore = Math.max(prev.highScore, gameState.score);
+                    
+                    const petData = prev.pets[selectedPetId] || { level: 1 };
+                    const pet = PETS[selectedPetId];
+                    const isSynergy = selectedCharId === 'char7';
+
                     let petBonus = 1;
-                    if(PETS[selectedPetId].skill === 'currency_boost') {
-                        const petLevel = prev.pets[selectedPetId]?.level || 1;
-                        const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
-                        petBonus = 1 + getPetStat(PETS[selectedPetId], petLevel, isSynergy) / 100;
+                    if(pet.skill === 'currency_boost') {
+                        petBonus = 1 + getPetStat(pet, petData.level, isSynergy) / 100;
                     }
                     if(activePartnerBonus?.type === 'currency_bonus_final') petBonus += activePartnerBonus.value;
                     const enhancementBonus = 1 + (prev.enhancements.currency_gain || 0) * ENHANCEMENTS.currency_gain.baseValue;
-                    const earnedCurrency = Math.floor(inGameStatsRef.current.jellies * 5 * petBonus * enhancementBonus);
+                    const levelBonus = 1 + playerLevelBonuses.currency;
+                    const earnedCurrency = Math.floor(inGameStatsRef.current.jellies * 5 * petBonus * enhancementBonus * levelBonus);
                     return { ...prev, highScore: newHighScore, currency: Math.floor(prev.currency + earnedCurrency) };
                 });
-            }, [gameState.score, selectedCharId, selectedPetId, activePartnerBonus, updateMissions]);
+            }, [gameState.score, selectedCharId, selectedPetId, activePartnerBonus, updateMissions, playerLevelBonuses]);
 
             const startGame = () => {
                 const character = CHARACTERS[selectedCharId];
                 const pet = PETS[selectedPetId];
-                const charLevel = playerData.characters[selectedCharId]?.level || 1;
+                const charData = playerData.characters[selectedCharId] || { level: 1 };
+                const petData = playerData.pets[selectedPetId] || { level: 1 };
+                
                 const enhancementBonus = (playerData.enhancements.health || 0) * ENHANCEMENTS.health.baseValue;
-                let maxHealth = getCharacterStat(character, charLevel) + getTreasureValue('health_bonus') + enhancementBonus;
+                let maxHealth = getCharacterStat(character, charData.level) + getTreasureValue('health_bonus') + enhancementBonus + playerLevelBonuses.health;
                 if (activePartnerBonus?.type === 'max_health_bonus') maxHealth += activePartnerBonus.value;
                 let baseSpeed = INITIAL_GAME_SPEED * (1 + getTreasureValue('speed_boost'));
                 if (character.skill === 'high_speed') baseSpeed *= 1.2;
-                playerStateRef.current = { pos: { x: PLAYER_X_POSITION, y: WORLD_HEIGHT - GROUND_HEIGHT - PLAYER_RUN_SIZE.y }, size: PLAYER_RUN_SIZE, vy: 0, health: maxHealth, maxHealth: maxHealth, isJumping: false, jumpCount: 0, rhythmJumpCombo: 0, isSliding: false, isGiant: false, isBlasting: false, hasMagnet: false, isShadowForm: false, activeEffects: {}, skillTimers: { teleport: 5, interest: 10 }, jellyBlastCounter: 0, invincibilityTimer: 0 };
-                if (character.skill === 'start_magnet') { playerStateRef.current.activeEffects['magnet'] = 5; }
+                if (pet.skill === 'pace_keeper') baseSpeed *= 1.05;
+
+                playerStateRef.current = { pos: { x: PLAYER_X_POSITION, y: WORLD_HEIGHT - GROUND_HEIGHT - PLAYER_RUN_SIZE.y }, size: PLAYER_RUN_SIZE, vy: 0, health: maxHealth, maxHealth: maxHealth, isJumping: false, jumpCount: 0, rhythmJumpCombo: 0, isSliding: false, isGiant: false, isBlasting: false, hasMagnet: false, isShadowForm: false, activeEffects: {}, skillTimers: { teleport: 5, interest: 10 }, jellyBlastCounter: 0, invincibilityTimer: 0, shield: 0, emergencyShieldUsed: false };
+                if (character.skill === 'start_magnet') { playerStateRef.current.activeEffects['magnet'] = 5 + Math.floor(charData.level / 5); }
+                
+                const isSynergy = selectedCharId === 'char7';
                 let initialFever = 0;
-                if (pet.skill === 'fever_start_boost') { initialFever = FEVER_GAUGE_MAX * (pet.baseStat / 100); }
+                if (pet.skill === 'fever_start_boost') { 
+                    initialFever = FEVER_GAUGE_MAX * (getPetStat(pet, petData.level, isSynergy) / 100);
+                }
                 gameObjectsRef.current = [];
                 nextSpawnDistanceRef.current = 0;
                 backgroundXRef.current = 0;
                 petSkillTimerRef.current = { health_potion: 0, generate_bonus_jelly: 0, foresight: 0 };
                 inGameStatsRef.current = { jellies: 0, distance: 0, obstaclesDestroyed: 0, jumps: 0, fevers: 0, itemsUsed: 0, currentRunScore: 0, bossKills: 0 };
                 reviveUsedRef.current = false;
-                setGameState({ status: 'playing', score: 0, distance: 0, gameSpeed: baseSpeed, isFeverTime: false, feverGauge: initialFever, feverTimeLeft: 0, isPaused: false, isLastDash: false, lastDashTimeLeft: 0, activeSkillCooldown: 0, worldLevel: 1 });
+                setGameState({ status: 'playing', score: 0, distance: 0, gameSpeed: baseSpeed, isFeverTime: false, feverGauge: initialFever, feverTimeLeft: 0, isPaused: false, activeSkillCooldown: 0, worldLevel: 1 });
                 setBossState({ isActive: false, health: 0, maxHealth: BOSS_MAX_HEALTH, attackTimer: 0, pattern: 'idle', pos: {x:0,y:0} });
             };
 
             const triggerGameOver = () => {
+                if (gameState.status === 'gameOver') return;
                 finalizeRun();
                 setGameState(prev => ({ ...prev, status: 'gameOver' }));
-            };
-
-            const startLastDash = () => {
-                const pet = PETS[selectedPetId];
-                if (pet.skill === 'revive' && !reviveUsedRef.current) {
-                    reviveUsedRef.current = true;
-                    let reviveHealth = 0.25;
-                    if(activePartnerBonus?.type === 'revive_health_bonus') reviveHealth = activePartnerBonus.value;
-                    playerStateRef.current.health = playerStateRef.current.maxHealth * reviveHealth;
-                    return;
-                }
-                if (!gameState.isLastDash) {
-                    let duration = LAST_DASH_DURATION;
-                    if(CHARACTERS[selectedCharId].skill === 'last_dash_boost') duration *= 1.5;
-                    setGameState(prev => ({...prev, isLastDash: true, lastDashTimeLeft: duration}));
-                }
             };
 
             const togglePause = () => { 
                 if (gameState.status !== 'playing') return;
                 const newPausedState = !gameState.isPaused;
                  if (newPausedState) {
-                    // This is a bit of a hack to force a re-render for the overlay
                     setActiveOverlay('paused'); 
                 } else {
                     setActiveOverlay(null);
@@ -608,7 +668,7 @@
                 const newObjects = [];
                 const basePos = { x: WORLD_WIDTH + 100, y: 0 };
                 const jellySize = {x: 20, y: 20};
-                const jellyY = WORLD_HEIGHT - GROUND_HEIGHT - jellySize.y - 10;
+                const jellyY = WORLD_HEIGHT - GROUND_HEIGHT - 60;
                 const bearY = WORLD_HEIGHT - GROUND_HEIGHT - 150;
                 const bearSize = { x: 60, y: 80 };
 
@@ -625,7 +685,7 @@
                     const pattern = Math.random();
                     const character = CHARACTERS[selectedCharId];
                     let itemRoll = Math.random();
-                    if (character.skill === 'item_boost') itemRoll *= 0.7;
+                    if (character.skill === 'item_boost') itemRoll *= 0.6;
 
                     if (itemRoll < 0.1) {
                         const itemTypeRoll = Math.random(); let itemType, ItemIcon;
@@ -645,10 +705,15 @@
                     }
                 }
                 gameObjectsRef.current.push(...newObjects); nextSpawnDistanceRef.current = gameState.distance + Math.random() * 200 + 200;
-            }, [gameState.distance, selectedCharId]);
+            }, [gameState.distance, selectedCharId, playerData]);
 
             const gameLoop = useCallback((deltaTime) => {
-                if (gameState.isPaused) return; const player = playerStateRef.current; if (!player) return; const character = CHARACTERS[selectedCharId]; const pet = PETS[selectedPetId]; const petLevel = playerData.pets[selectedPetId]?.level || 1; const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
+                if (gameState.isPaused || gameState.status === 'gameOver') return; const player = playerStateRef.current; if (!player) return; 
+                const character = CHARACTERS[selectedCharId]; 
+                const pet = PETS[selectedPetId]; 
+                const charData = playerData.characters[selectedCharId] || { level: 1 };
+                const petData = playerData.pets[selectedPetId] || { level: 1 };
+                const isSynergy = selectedCharId === 'char7';
                 
                 if (player.invincibilityTimer > 0) {
                     player.invincibilityTimer -= deltaTime;
@@ -656,15 +721,14 @@
                 
                 setGameState(prev => ({...prev, activeSkillCooldown: Math.max(0, prev.activeSkillCooldown - deltaTime) }));
 
-                // --- SPEED & MOVEMENT ---
                 let speedMultiplier = 1; let speedIncreaseRate = GAME_SPEED_INCREASE_RATE;
                 if (player.isBlasting) speedMultiplier = BLAST_JELLY_SPEED_MULTIPLIER;
                 else if (player.isShadowForm) speedMultiplier = 1.2;
-                else if (character.skill === 'time_slow' && player.health < player.maxHealth * 0.5) { let slowDurBonus = activePartnerBonus?.type === 'slow_duration_bonus' ? activePartnerBonus.value : 0; speedMultiplier = 0.8 * (1 - slowDurBonus); }
-                if (pet.skill === 'pace_keeper') { speedIncreaseRate *= (1 - pet.baseStat); }
+                else if (character.skill === 'time_slow' && player.health < player.maxHealth * 0.5) { let slowDurBonus = activePartnerBonus?.type === 'slow_duration_bonus' ? activePartnerBonus.value : 0; speedMultiplier = 0.75 * (1 - slowDurBonus); }
+                if (pet.skill === 'pace_keeper') { speedIncreaseRate *= (1 - getPetStat(pet, petData.level, isSynergy)); }
 
                 let newGameSpeed, actualSpeed, newDistance, newScore, newFeverGauge;
-                if(gameState.isLastDash) { let newLastDashTimeLeft = gameState.lastDashTimeLeft - deltaTime; if(newLastDashTimeLeft <= 0) { triggerGameOver(); return; } player.health = 0; setGameState(prev => ({...prev, lastDashTimeLeft: newLastDashTimeLeft})); }
+                
                 newGameSpeed = Math.min(MAX_GAME_SPEED, gameState.gameSpeed + speedIncreaseRate * deltaTime);
                 actualSpeed = newGameSpeed * speedMultiplier; 
                 backgroundXRef.current = (backgroundXRef.current - actualSpeed * deltaTime * 0.5) % WORLD_WIDTH;
@@ -675,34 +739,50 @@
                 player.vy -= GRAVITY * deltaTime; player.pos.y -= player.vy * deltaTime;
                 if (player.pos.y > WORLD_HEIGHT - GROUND_HEIGHT - player.size.y) { player.pos.y = WORLD_HEIGHT - GROUND_HEIGHT - player.size.y; player.vy = 0; if (player.isJumping) { player.isJumping = false; player.jumpCount = 0; if (player.rhythmJumpCombo > 1) { newScore += player.rhythmJumpCombo * 100; } player.rhythmJumpCombo = 0; } }
 
-                // --- HEALTH & FEVER ---
-                if (!gameState.isLastDash) { player.health -= HEALTH_DECAY_RATE * deltaTime; }
+                player.health -= HEALTH_DECAY_RATE * deltaTime;
+                if (character.skill === 'emergency_shield' && !player.emergencyShieldUsed && player.health < player.maxHealth * 0.25) {
+                    player.emergencyShieldUsed = true;
+                    player.shield = 1 + Math.floor((charData.level - 1) / 5);
+                    player.invincibilityTimer = 1.0;
+                }
+                
+                if (player.health <= 0) {
+                    if (pet.skill === 'revive' && !reviveUsedRef.current) {
+                        reviveUsedRef.current = true;
+                        let reviveHealth = getPetStat(pet, petData.level, isSynergy);
+                        if(activePartnerBonus?.type === 'revive_health_bonus') reviveHealth = activePartnerBonus.value;
+                        player.health = player.maxHealth * reviveHealth;
+                        player.invincibilityTimer = 2.0;
+                    } else {
+                        triggerGameOver();
+                        return;
+                    }
+                }
+
                 let newFeverTimeLeft = gameState.feverTimeLeft; if (gameState.isFeverTime) { newFeverTimeLeft -= deltaTime; if (newFeverTimeLeft <= 0) { setGameState(prev => ({...prev, isFeverTime: false})); newFeverTimeLeft = 0; } }
 
-                // --- SKILLS & PETS ---
-                if (character.skill === 'random_teleport') { player.skillTimers.teleport -= deltaTime; if (player.skillTimers.teleport <= 0) { player.skillTimers.teleport = 5 + Math.random() * 5; if (Math.random() < 0.3) player.pos.x += 150; } }
-                if (character.skill === 'interest_score') { player.skillTimers.interest -= deltaTime; if (player.skillTimers.interest <= 0) { player.skillTimers.interest = 10; newScore += Math.floor(gameState.score * 0.01); } }
+                if (character.skill === 'random_teleport') { player.skillTimers.teleport -= deltaTime; if (player.skillTimers.teleport <= 0) { player.skillTimers.teleport = Math.max(1.5, 4 - (charData.level - 1) * 0.1) + Math.random() * 4; if (Math.random() < 0.35 + (charData.level - 1) * 0.015) player.pos.x += 150; } }
+                if (character.skill === 'interest_score') { player.skillTimers.interest -= deltaTime; if (player.skillTimers.interest <= 0) { player.skillTimers.interest = 10; newScore += Math.floor(gameState.score * (0.012 + (charData.level - 1) * 0.00025)); } }
                 
-                const petStat = getPetStat(pet, petLevel, isSynergy); let cooldownReduction = activePartnerBonus?.type === 'pet_cooldown_reduction' ? 1 - activePartnerBonus.value : 1;
+                const petStat = getPetStat(pet, petData.level, isSynergy);
                 if (pet.skill === 'health_potion' || pet.skill === 'generate_bonus_jelly') { 
                     petSkillTimerRef.current[pet.skill] = (petSkillTimerRef.current[pet.skill] || 0) + deltaTime; 
-                    if (petSkillTimerRef.current[pet.skill] >= (petStat * cooldownReduction)) { 
-                        petSkillTimerRef.current[pet.skill] = 0; let type, Icon;
-                        if (pet.skill === 'health_potion') { type = 'health_potion_item'; Icon = HealthPotionIcon; } else { type = 'big_jelly'; Icon = BigJellyIcon; }
-                        gameObjectsRef.current.push({ id: Math.random(), type, pos: { x: WORLD_WIDTH + 50, y: WORLD_HEIGHT - GROUND_HEIGHT - 100 }, size: { x: 30, y: 30 }, Icon }); 
+                    if (petSkillTimerRef.current[pet.skill] >= petStat) { 
+                        petSkillTimerRef.current[pet.skill] = 0; let type, Icon, size = {x: 30, y: 30};
+                        if (pet.skill === 'health_potion') { type = 'health_potion_item'; Icon = HealthPotionIcon; } 
+                        else { type = 'big_jelly'; Icon = BigJellyIcon; }
+                        gameObjectsRef.current.push({ id: Math.random(), type, pos: { x: WORLD_WIDTH + 50, y: WORLD_HEIGHT - GROUND_HEIGHT - 100 }, size, Icon }); 
                     } 
                 }
                  if (pet.skill === 'foresight') {
                     petSkillTimerRef.current.foresight = (petSkillTimerRef.current.foresight || 0) + deltaTime;
-                    const foresightCooldown = getPetStat(pet, petLevel, isSynergy);
-                    if (petSkillTimerRef.current.foresight >= foresightCooldown) {
-                        petSkillTimerRef.current.foresight = 0; let found = false;
-                        gameObjectsRef.current.forEach(obj => { obj.isHighlighted = false; }); // Clear previous
-                        for (const obj of gameObjectsRef.current) { if (!found && obj.type.startsWith('obstacle') && obj.pos.x > player.pos.x) { obj.isHighlighted = true; found = true; break; } }
+                    if (petSkillTimerRef.current.foresight >= petStat) {
+                        petSkillTimerRef.current.foresight = 0; let found = 0;
+                        gameObjectsRef.current.forEach(obj => { obj.isHighlighted = false; });
+                        for (const obj of gameObjectsRef.current) { if (found < 1 && obj.type.startsWith('obstacle') && obj.pos.x > player.pos.x) { obj.isHighlighted = true; found++; } if(found >= 1) break; }
                     }
                 }
 
-                // --- COLLISIONS & OBJECTS ---
                 const playerRect = { x: player.pos.x, y: player.pos.y, width: player.size.x, height: player.size.y }; const playerCenter = { x: player.pos.x + player.size.x / 2, y: player.pos.y + player.size.y / 2 };
                 const remainingGameObjects = [];
                 for (const obj of gameObjectsRef.current) {
@@ -719,8 +799,8 @@
                     const objRect = { x: obj.pos.x, y: obj.pos.y, width: obj.size.x, height: obj.size.y };
                     let shouldKeep = true;
                     if (playerRect.x < objRect.x + objRect.width && playerRect.x + playerRect.width > objRect.x && playerRect.y < objRect.y + objRect.height && playerRect.y + playerRect.height > objRect.y) {
-                        const handleJellyCollision = (isBig) => { inGameStatsRef.current.jellies++; player.jellyBlastCounter++; if (pet.skill === 'jelly_blast' && player.jellyBlastCounter >= petStat) { player.jellyBlastCounter = 0; createBlast(playerCenter, 150); } const petScoreBonus = (PETS[selectedPetId].skill === 'score_bonus') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; const treasureScoreBonus = 1 + getTreasureValue('score_bonus'); const jellyScoreBonus = activePartnerBonus?.type === 'jelly_score_bonus' ? 1 + activePartnerBonus.value : 1; const treasureJellyPercentBonus = 1 + getTreasureValue('base_jelly_score_percentage_bonus'); const enhancementBonus = 1 + (playerData.enhancements.jelly_score || 0) * ENHANCEMENTS.jelly_score.baseValue; let baseJellyScore = isBig ? 50 : 10; if (activePartnerBonus?.type === 'base_jelly_score_bonus') baseJellyScore += activePartnerBonus.value; const shadowPactMultiplier = player.isShadowForm ? 2 : 1; newScore += Math.floor((baseJellyScore + petScoreBonus) * treasureScoreBonus * jellyScoreBonus * treasureJellyPercentBonus * enhancementBonus * shadowPactMultiplier); if (!gameState.isFeverTime) { const petFeverBonus = (PETS[selectedPetId].skill === 'fever_boost') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; newFeverGauge = Math.min(FEVER_GAUGE_MAX, newFeverGauge + FEVER_GAUGE_PER_JELLY + petFeverBonus); } shouldKeep = false; };
-                        const handleItemCollision = (itemType) => { inGameStatsRef.current.itemsUsed++; let effectMultiplier = (character.skill === 'item_double_effect') ? 2 : 1; let durationMultiplier = 1; if(PETS[selectedPetId].skill === 'powerup_boost') durationMultiplier += getPetStat(PETS[selectedPetId], petLevel, isSynergy) / 100; if(PETS[selectedPetId].skill === 'item_duration_boost') durationMultiplier += PETS[selectedPetId].baseStat; if(activePartnerBonus?.type === 'all_item_duration_bonus') durationMultiplier += activePartnerBonus.value; const finalDurationMultiplier = durationMultiplier * effectMultiplier; if (pet.skill === 'copy_item' && Math.random() < pet.baseStat) { gameObjectsRef.current.push({ ...obj, id: Math.random(), pos: {x: player.pos.x + 200, y: obj.pos.y} }); } switch(itemType) { case 'health_potion_item': player.health = Math.min(player.maxHealth, player.health + 30 * effectMultiplier); break; case 'giant_potion': player.isGiant = true; player.activeEffects['giant'] = GIANT_POTION_DURATION * (1 + getTreasureValue('giant_duration')) * finalDurationMultiplier; break; case 'blast_jelly': player.isBlasting = true; player.activeEffects['blast'] = BLAST_JELLY_DURATION * finalDurationMultiplier; break; case 'magnet_item': player.hasMagnet = true; let magnetBonus = activePartnerBonus?.type === 'magnet_duration_bonus' ? 1 + activePartnerBonus.value : 1; player.activeEffects['magnet'] = MAGNET_ITEM_DURATION * (1 + getTreasureValue('magnet_duration')) * finalDurationMultiplier * magnetBonus; break; } shouldKeep = false; };
+                        const handleJellyCollision = (isBig) => { inGameStatsRef.current.jellies++; player.jellyBlastCounter++; if (pet.skill === 'jelly_blast' && player.jellyBlastCounter >= petStat) { player.jellyBlastCounter = 0; createBlast(playerCenter, 150); } const petScoreBonus = (pet.skill === 'score_bonus') ? getPetStat(pet, petData.level, isSynergy) : 0; const treasureScoreBonus = 1 + getTreasureValue('score_bonus'); const jellyScoreBonus = activePartnerBonus?.type === 'jelly_score_bonus' ? 1 + activePartnerBonus.value : 1; const treasureJellyPercentBonus = 1 + getTreasureValue('base_jelly_score_percentage_bonus'); const enhancementBonus = 1 + (playerData.enhancements.jelly_score || 0) * ENHANCEMENTS.jelly_score.baseValue; let baseJellyScore = isBig ? 50 : 10; if (activePartnerBonus?.type === 'base_jelly_score_bonus') baseJellyScore += activePartnerBonus.value; const shadowPactMultiplier = player.isShadowForm ? 2 : 1; let scoreMultiplier = 1; if(character.skill === 'high_speed') { scoreMultiplier = 1.15; } newScore += Math.floor(((baseJellyScore + petScoreBonus) * treasureScoreBonus * jellyScoreBonus * treasureJellyPercentBonus * enhancementBonus * shadowPactMultiplier * (1 + playerLevelBonuses.score)) * scoreMultiplier); if (!gameState.isFeverTime) { const petFeverBonus = (pet.skill === 'fever_boost') ? getPetStat(pet, petData.level, isSynergy) : 0; newFeverGauge = Math.min(FEVER_GAUGE_MAX, newFeverGauge + FEVER_GAUGE_PER_JELLY + petFeverBonus); } shouldKeep = false; };
+                        const handleItemCollision = (itemType) => { inGameStatsRef.current.itemsUsed++; let effectMultiplier = (character.skill === 'item_double_effect') ? 2.2 + (charData.level - 1) * 0.06 : 1; let durationMultiplier = 1; if(pet.skill === 'item_duration_boost') durationMultiplier += getPetStat(pet, petData.level, isSynergy); if(activePartnerBonus?.type === 'all_item_duration_bonus') durationMultiplier += activePartnerBonus.value; const finalDurationMultiplier = durationMultiplier * effectMultiplier; if (pet.skill === 'copy_item' && Math.random() < getPetStat(pet, petData.level, isSynergy)) { gameObjectsRef.current.push({ ...obj, id: Math.random(), pos: {x: player.pos.x + 200, y: obj.pos.y} }); } switch(itemType) { case 'health_potion_item': player.health = Math.min(player.maxHealth, player.health + 30 * effectMultiplier); break; case 'giant_potion': player.isGiant = true; player.activeEffects['giant'] = GIANT_POTION_DURATION * (1 + getTreasureValue('giant_duration')) * finalDurationMultiplier; break; case 'blast_jelly': player.isBlasting = true; player.activeEffects['blast'] = BLAST_JELLY_DURATION * finalDurationMultiplier; break; case 'magnet_item': player.hasMagnet = true; let magnetBonus = activePartnerBonus?.type === 'magnet_duration_bonus' ? 1 + activePartnerBonus.value : 1; player.activeEffects['magnet'] = MAGNET_ITEM_DURATION * (1 + getTreasureValue('magnet_duration')) * finalDurationMultiplier * magnetBonus; break; } shouldKeep = false; };
                         
                         if (obj.type === 'rainbow_bear_jelly') { newScore += 15000; newFeverGauge = FEVER_GAUGE_MAX; shouldKeep = false; }
                         else if (obj.type === 'golden_bear_jelly') { inGameStatsRef.current.jellies += 200; shouldKeep = false; }
@@ -733,27 +813,21 @@
                             const isLiftInvincible = player.isSliding && character.skill === 'slide_invincible';
                             const isSlideObstacle = obj.type === 'obstacle_slide';
                             
-                            if (isSlideObstacle && player.isSliding) {
-                                // Pass through harmlessly
-                            } else if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash || player.isShadowForm || isLiftInvincible) {
-                                if(!obj.type.startsWith('boss')) { 
-                                  inGameStatsRef.current.obstaclesDestroyed++; newScore += FEVER_OBSTACLE_SCORE; shouldKeep = false; 
-                                }
-                            }
-                            else if (player.invincibilityTimer > 0) {
-                                // Invincible from a recent hit, just destroy the obstacle without damage
+                            if (isSlideObstacle && player.isSliding) { /* Pass */ } 
+                            else if (gameState.isFeverTime || player.isGiant || player.isBlasting || player.isShadowForm || isLiftInvincible) {
+                                if(!obj.type.startsWith('boss')) { inGameStatsRef.current.obstaclesDestroyed++; newScore += FEVER_OBSTACLE_SCORE; shouldKeep = false; }
+                            } else if (player.shield > 0) {
+                                player.shield--;
                                 shouldKeep = false;
-                            }
-                            else if (pet.skill === 'damage_negation' && Math.random() * 100 < getPetStat(pet, petLevel, isSynergy)) { 
+                            } else if (player.invincibilityTimer > 0) {
+                                shouldKeep = false;
+                            } else if (pet.skill === 'damage_negation' && Math.random() * 100 < getPetStat(pet, petData.level, isSynergy)) { 
                                 shouldKeep = false; 
-                            }
-                            else { 
+                            } else { 
                                 let damage = OBSTACLE_DAMAGE;
-                                if (activePartnerBonus?.type === 'damage_reduction') {
-                                    damage *= (1 - activePartnerBonus.value);
-                                }
+                                if (activePartnerBonus?.type === 'damage_reduction') { damage *= (1 - activePartnerBonus.value); }
                                 player.health -= damage; 
-                                player.invincibilityTimer = 1.5; // Set invincibility
+                                player.invincibilityTimer = 1.5;
                                 setHitFlash(true); 
                                 setTimeout(() => setHitFlash(false), 150);
                                 shouldKeep = false;
@@ -766,42 +840,44 @@
                 }
                 gameObjectsRef.current = remainingGameObjects;
                 
-                // --- UPDATE STATE ---
                 inGameStatsRef.current.currentRunScore = newScore;
                 let isFeverNow = gameState.isFeverTime; if (!isFeverNow && newFeverGauge >= FEVER_GAUGE_MAX) { isFeverNow = true; inGameStatsRef.current.fevers++; let feverDurBonus = activePartnerBonus?.type === 'fever_duration_bonus' ? 1 + activePartnerBonus.value : 1; const enhancementFeverBonus = (playerData.enhancements.fever_duration || 0) * ENHANCEMENTS.fever_duration.baseValue; newFeverTimeLeft = (FEVER_DURATION + enhancementFeverBonus) * (1 + getTreasureValue('fever_duration')) * feverDurBonus; newFeverGauge = 0; }
                 if (newDistance > nextSpawnDistanceRef.current && gameState.status === 'playing') spawnGameObject(); 
-                if (player.health <= 0 && !gameState.isLastDash) { startLastDash(); }
+                
                 setGameState(prev => ({ ...prev, score: Math.floor(newScore), distance: newDistance, gameSpeed: newGameSpeed, isFeverTime: isFeverNow, feverGauge: newFeverGauge, feverTimeLeft: newFeverTimeLeft }));
                 forceUpdate({});
-            }, [gameState, playerData, selectedCharId, selectedPetId, spawnGameObject, activePartnerBonus, getTreasureValue, finalizeRun]);
+            }, [gameState, playerData, selectedCharId, selectedPetId, spawnGameObject, activePartnerBonus, getTreasureValue, finalizeRun, playerLevelBonuses]);
 
             useGameLoop(gameLoop, (gameState.status === 'playing') && !gameState.isPaused);
 
-            const handleJump = useCallback(() => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.jumpCount >= 2 || player.isSliding) return; player.vy = PLAYER_JUMP_FORCE * (1 + getTreasureValue('jump_boost')); player.isJumping = true; player.jumpCount++; inGameStatsRef.current.jumps++; if (CHARACTERS[selectedCharId].skill === 'rhythm_bonus') { player.rhythmJumpCombo++; if(player.rhythmJumpCombo === 5) { setGameState(prev => ({...prev, score: prev.score + 1000})); player.rhythmJumpCombo = 0; } } }, [gameState.status, gameState.isPaused, getTreasureValue, selectedCharId]);
+            const handleJump = useCallback(() => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.jumpCount >= 2 || player.isSliding) return; player.vy = PLAYER_JUMP_FORCE * (1 + getTreasureValue('jump_boost')); player.isJumping = true; player.jumpCount++; inGameStatsRef.current.jumps++; const charData = playerData.characters[selectedCharId] || { level: 1 }; if (CHARACTERS[selectedCharId].skill === 'rhythm_bonus') { player.rhythmJumpCombo++; if(player.rhythmJumpCombo === 5) { setGameState(prev => ({...prev, score: prev.score + (1500 + (charData.level - 1) * 150)})); player.rhythmJumpCombo = 0; } } }, [gameState.status, gameState.isPaused, getTreasureValue, selectedCharId, playerData]);
             const handleJumpRelease = useCallback(() => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.vy <= 0) return; player.vy *= 0.5; }, [gameState.status, gameState.isPaused]);
-            const handleSlide = useCallback((isSliding) => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.isJumping) return; player.isSliding = isSliding; const newSize = isSliding ? PLAYER_SLIDE_SIZE : PLAYER_RUN_SIZE; const oldY = player.pos.y + player.size.y; player.size = newSize; player.pos.y = oldY - newSize.y; }, [gameState.status, gameState.isPaused]);
+            const handleSlide = useCallback((isSliding) => { if (gameState.status !== 'playing' || gameState.isPaused) return; const player = playerStateRef.current; if (!player || player.isJumping) return; player.isSliding = isSliding; const newSize = isSliding ? PLAYER_SLIDE_SIZE : PLAYER_RUN_SIZE; const oldY = player.pos.y + player.size.y; player.size = newSize; player.pos.y = oldY - newSize.y; const charData = playerData.characters[selectedCharId] || { level: 1 }; if (!isSliding && CHARACTERS[selectedCharId].skill === 'slide_invincible' && Math.random() < charData.level * 0.015) { player.shield = 1; } }, [gameState.status, gameState.isPaused, selectedCharId, playerData]);
             const handleActiveSkill = useCallback(() => {
                 if (gameState.status !== 'playing' || gameState.isPaused || gameState.activeSkillCooldown > 0) return;
                 const player = playerStateRef.current;
+                const charData = playerData.characters[selectedCharId] || { level: 1 };
+                const petData = playerData.pets[selectedPetId] || { level: 1 };
                 const character = CHARACTERS[selectedCharId];
                 const pet = PETS[selectedPetId];
                 let cooldown = 0; let skillUsed = false;
                 
                 if (character.skill === 'laser_beam') {
-                    skillUsed = true; cooldown = character.cooldown; const laserY = player.pos.y + player.size.y / 2 - 15; const laserSizeY = 30;
+                    skillUsed = true; cooldown = character.cooldown; const laserSizeY = 30 * (1 + (charData.level - 1) * 0.08); const laserY = player.pos.y + player.size.y / 2 - laserSizeY / 2;
                     gameObjectsRef.current.push({ id: Math.random(), type: 'gazer_laser', pos: { x: player.pos.x + player.size.x, y: laserY }, size: { x: WORLD_WIDTH, y: laserSizeY }, Icon: GazerLaserIcon, lifetime: 0.5 });
                     const affected = gameObjectsRef.current.filter(obj => obj.type.startsWith('obstacle') && obj.pos.y < laserY + laserSizeY && obj.pos.y + obj.size.y > laserY).map(o => o.id);
                     if (affected.length > 0) { inGameStatsRef.current.obstaclesDestroyed += affected.length; gameObjectsRef.current = gameObjectsRef.current.filter(obj => !affected.includes(obj.id)); }
                 } else if (pet.skill === 'emp_blast') {
                     skillUsed = true; cooldown = pet.cooldown; createBlast({ x: player.pos.x, y: player.pos.y }, WORLD_WIDTH);
                 } else if (character.skill === 'shadow_pact') {
-                    if (player.health > player.maxHealth * 0.21) { // Safety margin
-                        skillUsed = true; cooldown = character.cooldown; player.health -= player.maxHealth * 0.2; let duration = 5; if(activePartnerBonus?.type === 'shadow_pact_duration_bonus') duration += activePartnerBonus.value; player.activeEffects['shadow_pact'] = duration; player.isShadowForm = true;
+                    const healthCost = player.maxHealth * Math.max(0.08, 0.18 - (charData.level - 1) * 0.005);
+                    if (player.health > healthCost + 1) { 
+                        skillUsed = true; cooldown = character.cooldown; player.health -= healthCost; let duration = 6; if(activePartnerBonus?.type === 'shadow_pact_duration_bonus') duration += activePartnerBonus.value; player.activeEffects['shadow_pact'] = duration; player.isShadowForm = true;
                     }
                 }
                 
                 if (skillUsed) { let cooldownReduction = activePartnerBonus?.type === 'active_skill_cooldown_reduction' ? 1 - activePartnerBonus.value : 1; setGameState(prev => ({...prev, activeSkillCooldown: cooldown * cooldownReduction})); }
-            }, [gameState, selectedCharId, selectedPetId, activePartnerBonus]);
+            }, [gameState, selectedCharId, selectedPetId, activePartnerBonus, playerData]);
 
             useEffect(() => {
                 const onKeyDown = (e) => {
@@ -826,8 +902,40 @@
             }, [gameState.status, gameState.isPaused, handleJump, handleSlide, handleJumpRelease, togglePause, handleActiveSkill]);
 
             const costReduction = getTreasureValue('cost_reduction');
+            const addXpAndUpdate = (prev, cost, updateFn) => {
+                const xpGained = Math.floor(cost / 5);
+                const newData = JSON.parse(JSON.stringify(prev));
+                newData.currency -= cost;
+                updateFn(newData);
+
+                if (newData.level < MAX_PLAYER_LEVEL) {
+                    newData.xp += xpGained;
+                    let requiredXp = XP_FOR_LEVEL(newData.level);
+                    let leveledUp = false;
+                    while (newData.xp >= requiredXp && newData.level < MAX_PLAYER_LEVEL) {
+                        newData.level++;
+                        newData.xp -= requiredXp;
+                        leveledUp = true;
+                        requiredXp = XP_FOR_LEVEL(newData.level);
+                    }
+                    if (leveledUp) {
+                        setTimeout(() => setLevelUpInfo({ level: newData.level }), 300);
+                    }
+                }
+                return newData;
+            }
+
             const handleLevelUp = (type, id) => {
-                setPlayerData(prev => { if (!prev) return null; const isChar = type === 'character'; const data = isChar ? prev.characters[id] : prev.pets[id]; const meta = isChar ? CHARACTERS[id] : PETS[id]; if (data.level >= meta.maxLevel) return prev; const cost = LEVEL_UP_COST(data.level, costReduction); if (prev.currency < cost) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency -= cost; (isChar ? newData.characters[id] : newData.pets[id]).level++; return newData; });
+                setPlayerData(prev => { 
+                    if (!prev) return null; 
+                    const isChar = type === 'character'; 
+                    const data = isChar ? prev.characters[id] : prev.pets[id]; 
+                    const cost = LEVEL_UP_COST(data.level, costReduction); 
+                    if (prev.currency < cost) return prev; 
+                    return addXpAndUpdate(prev, cost, (newData) => {
+                        (isChar ? newData.characters[id] : newData.pets[id]).level++;
+                    });
+                });
             };
             const handleUnlock = (type, id) => {
                 setPlayerData(prev => {
@@ -841,68 +949,32 @@
                 });
             };
             const handleClaimMissionReward = (missionId) => {
-                 setPlayerData(prev => { const mission = MISSIONS.find(m => m.id === missionId); const missionProgress = prev.missions[missionId]; if(!mission || !missionProgress || !missionProgress.completed || missionProgress.claimed) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency += mission.reward.currency; newData.gachaChests = (newData.gachaChests || 0) + mission.reward.gachaChests; newData.missions[missionId].claimed = true; return newData; });
+                 setPlayerData(prev => { const mission = MISSIONS.find(m => m.id === missionId); const missionProgress = prev.missions[missionId]; if(!mission || !missionProgress || !missionProgress.completed || missionProgress.claimed) return prev; const newData = JSON.parse(JSON.stringify(prev)); newData.currency += mission.reward.currency; newData.missions[missionId].claimed = true; return newData; });
             };
              const handleDrawGacha = () => {
-                if (!playerData || (playerData.gachaChests || 0) < 1) return;
-                
+                if (!playerData || playerData.currency < GACHA_COST) return;
                 setGachaState('animating');
-
                 setTimeout(() => {
                     setPlayerData(prev => {
-                        if (!prev || (prev.gachaChests || 0) < 1) {
-                            setGachaState('idle');
-                            return prev;
-                        }
+                        if (!prev || prev.currency < GACHA_COST) { setGachaState('idle'); return prev; }
                         const newData = JSON.parse(JSON.stringify(prev));
-                        newData.gachaChests--;
-
-                        const luck = getTreasureValue('luck_boost');
-                        const roll = Math.random();
-                        let result = null;
+                        newData.currency -= GACHA_COST;
+                        const luck = getTreasureValue('luck_boost'); const roll = Math.random(); let result = null;
                         const rarityColors = { epic: 'bg-purple-500/30 border-purple-400', rare: 'bg-blue-500/30 border-blue-400', uncommon: 'bg-green-500/30 border-green-400', common: 'bg-gray-500/30 border-gray-400' };
-                        const allChars = Object.values(CHARACTERS);
-                        const allPets = Object.values(PETS);
-
-                        if (roll < 0.05 + luck * 0.1) { // Epic
-                            const epicChars = allChars.filter(c => c.skill.includes('laser') || c.skill.includes('shadow_pact'));
-                            const target = epicChars[Math.floor(Math.random() * epicChars.length)];
-                            if (!newData.characters[target.id]) {
-                                newData.characters[target.id] = { level: 1 };
-                                result = { type: 'character', item: target, rarity: 'epic' };
-                            } else {
-                                newData.currency += 1000;
-                                result = { type: 'currency', amount: 1000, rarity: 'epic', note: `${target.name} 중복` };
-                            }
-                        } else if (roll < 0.20 + luck * 0.2) { // Rare
-                            const rarePets = allPets.filter(p => p.skill.includes('emp') || p.skill.includes('revive'));
-                            const target = rarePets[Math.floor(Math.random() * rarePets.length)];
-                            if (!newData.pets[target.id]) {
-                                newData.pets[target.id] = { level: 1 };
-                                result = { type: 'pet', item: target, rarity: 'rare' };
-                            } else {
-                                newData.currency += 500;
-                                result = { type: 'currency', amount: 500, rarity: 'rare', note: `${target.name} 중복` };
-                            }
-                        } else if (roll < 0.50 + luck * 0.3) { // Uncommon
+                        if (roll < 0.05 + luck * 0.1) {
+                            const target = Object.values(CHARACTERS).find(c => c.skill.includes('laser') || c.skill.includes('shadow_pact'));
+                            if (target && !newData.characters[target.id]) { newData.characters[target.id] = { level: 1 }; result = { type: 'character', item: target, rarity: 'epic' }; } 
+                            else { const fragmentsGained = 20; const currencyGained = 500; newData.memoryFragments = (newData.memoryFragments || 0) + fragmentsGained; newData.currency += currencyGained; result = { type: 'currency', amount: currencyGained, fragments: fragmentsGained, rarity: 'epic', note: `${target.name} 중복` }; }
+                        } else if (roll < 0.20 + luck * 0.2) {
+                            const target = Object.values(PETS).find(p => p.skill.includes('emp') || p.skill.includes('revive'));
+                             if (target && !newData.pets[target.id]) { newData.pets[target.id] = { level: 1 }; result = { type: 'pet', item: target, rarity: 'rare' }; } 
+                             else { const fragmentsGained = 10; const currencyGained = 250; newData.memoryFragments = (newData.memoryFragments || 0) + fragmentsGained; newData.currency += currencyGained; result = { type: 'currency', amount: currencyGained, fragments: fragmentsGained, rarity: 'rare', note: `${target.name} 중복` }; }
+                        } else if (roll < 0.50 + luck * 0.3) {
                             const unowned = Object.values(TREASURES).filter(t => !newData.treasures.includes(t.id));
-                            if (unowned.length > 0) {
-                                const treasure = unowned[Math.floor(Math.random() * unowned.length)];
-                                newData.treasures.push(treasure.id);
-                                result = { type: 'treasure', item: treasure, rarity: 'uncommon' };
-                            } else {
-                                newData.currency += 1000;
-                                result = { type: 'currency', amount: 1000, rarity: 'uncommon' };
-                            }
-                        } else { // Common
-                            const amount = 250 + Math.floor(Math.random() * 751);
-                            newData.currency += amount;
-                            result = { type: 'currency', amount, rarity: 'common' };
-                        }
-                        
-                        result.rarityColor = rarityColors[result.rarity];
-                        setGachaResult(result);
-                        setGachaState('result');
+                            if (unowned.length > 0) { const treasure = unowned[Math.floor(Math.random() * unowned.length)]; newData.treasures.push(treasure.id); result = { type: 'treasure', item: treasure, rarity: 'uncommon' }; } 
+                            else { const fragmentsGained = 5; const currencyGained = 500; newData.memoryFragments = (newData.memoryFragments || 0) + fragmentsGained; newData.currency += currencyGained; result = { type: 'currency', amount: currencyGained, fragments: fragmentsGained, rarity: 'uncommon', note: '보물 중복' }; }
+                        } else { const amount = 250 + Math.floor(Math.random() * 751); newData.currency += amount; result = { type: 'currency', amount, rarity: 'common' }; }
+                        result.rarityColor = rarityColors[result.rarity]; setGachaResult(result); setGachaState('result');
                         return newData;
                     });
                 }, 2000);
@@ -912,17 +984,31 @@
             };
             const handleUpgradeEnhancement = (id) => {
                 setPlayerData(prev => { 
-                    const currentLevel = prev.enhancements[id] || 0; 
+                    const level = prev.enhancements[id] || 0; 
                     const meta = ENHANCEMENTS[id]; 
-                    if (currentLevel >= meta.maxLevel) return prev; 
+                    if (level >= meta.maxLevel) return prev; 
                     const cost = ENHANCEMENT_COST(level, costReduction); 
                     if (prev.currency < cost) return prev; 
-                    const newData = JSON.parse(JSON.stringify(prev)); 
-                    newData.currency -= cost; 
-                    newData.enhancements[id]++; 
-                    return newData; 
+                    return addXpAndUpdate(prev, cost, (newData) => {
+                        newData.enhancements[id]++;
+                    });
                 });
             };
+            const handleTreasureLevelUp = (treasureId) => {
+                setPlayerData(prev => {
+                    const currentLevel = prev.treasureLevels?.[treasureId] || 0;
+                    const cost = TREASURE_LEVEL_UP_COST(currentLevel, costReduction);
+                    if (prev.currency < cost) return prev;
+                    return addXpAndUpdate(prev, cost, (newData) => {
+                        newData.treasureLevels[treasureId] = (newData.treasureLevels[treasureId] || 0) + 1;
+                    });
+                });
+            };
+            const handleSaveNickname = () => {
+                setPlayerData(prev => ({...prev, nickname: nicknameInput}));
+                setCurrentView('main');
+            };
+
 
             if (!playerData) { return React.createElement('div', { className: "w-screen h-screen flex items-center justify-center text-white glowing-text" }, "Loading..."); }
             
@@ -934,18 +1020,33 @@
                 
                 return React.createElement('div', { className: 'w-full h-full flex flex-col text-white' },
                     React.createElement('header', { className: 'w-full p-4 flex justify-between items-center text-lg' },
+                        React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, '👤', playerData.nickname),
                         React.createElement('div', { className: 'flex items-center gap-4' },
+                            React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, '🧠', playerData.memoryFragments || 0),
                             React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, 'J', playerData.currency.toLocaleString())
-                        ),
-                        React.createElement('div', { className: 'flex items-center gap-4' },
-                            React.createElement('div', { className: 'flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full border border-gray-600' }, '🎁', playerData.gachaChests || 0)
                         )
                     ),
                     React.createElement('main', { className: 'flex-grow flex flex-col items-center justify-center relative' },
-                        React.createElement('h1', { className: 'absolute top-0 text-3xl font-black glowing-text' }, "잎코대쉬"),
+                        React.createElement('div', { className: "absolute top-0 w-3/4 max-w-sm text-center" },
+                            React.createElement('div', { className: "flex justify-between items-center text-sm mb-1 px-1" },
+                                React.createElement('span', { className: "font-bold text-cyan-300" }, `Lv. ${playerData.level}`),
+                                playerData.level < MAX_PLAYER_LEVEL && 
+                                    React.createElement('span', { className: "text-gray-400" }, `${playerData.xp.toLocaleString()} / ${XP_FOR_LEVEL(playerData.level).toLocaleString()} XP`)
+                            ),
+                            React.createElement('div', { className: "progress-bar-container" },
+                                React.createElement('div', { 
+                                    className: "h-2 progress-bar",
+                                    style: { 
+                                        width: playerData.level >= MAX_PLAYER_LEVEL ? '100%' : `${(playerData.xp / XP_FOR_LEVEL(playerData.level)) * 100}%`,
+                                        background: 'linear-gradient(90deg, #f0f, #9400D3)'
+                                    } 
+                                })
+                            )
+                        ),
+                        React.createElement('h1', { className: 'absolute top-[calc(2rem+20px)] text-3xl font-black glowing-text' }, "잎코대쉬"),
                         React.createElement('div', { className: 'w-40 h-40 player-running', onClick: () => setCurrentView('team') }, React.createElement(character.Icon, null)),
                         React.createElement('div', { className: 'w-20 h-20 absolute bottom-[25%] right-[30%] player-running', style:{animationDuration: '0.6s'}, onClick: () => setCurrentView('team') }, React.createElement(pet.Icon, null)),
-                         activePartnerBonus && React.createElement('div', { className: "bg-purple-500/20 border border-purple-400 p-2 rounded-lg text-center absolute top-12" },
+                         activePartnerBonus && React.createElement('div', { className: "bg-purple-500/20 border border-purple-400 p-2 rounded-lg text-center absolute top-[calc(2rem+60px)]" },
                             React.createElement('p', { className: "font-bold text-sm text-purple-300" }, `✨ 짝꿍 효과: ${activePartnerBonus.name} ✨`),
                             React.createElement('p', { className: "text-xs text-purple-200" }, activePartnerBonus.description)
                         )
@@ -963,7 +1064,8 @@
                            React.createElement('button', { onClick: () => setCurrentView('missions'), className: `nav-button ${currentView === 'missions' ? 'active' : ''}` }, '🎯', React.createElement('span', null, '미션')),
                            React.createElement('button', { onClick: () => setCurrentView('treasures'), className: `nav-button ${currentView === 'treasures' ? 'active' : ''}` }, '💎', React.createElement('span', null, '보물'))
                         )
-                    )
+                    ),
+                    React.createElement('button', { onClick: () => setCurrentView('settings'), className: 'settings-button' }, React.createElement(SettingsIcon, null))
                 );
             };
 
@@ -985,7 +1087,6 @@
                     const item = isChar ? CHARACTERS[id] : PETS[id];
                     const data = isChar ? playerData.characters[id] : playerData.pets[id];
                     const level = data.level;
-                    const isMaxLevel = level >= item.maxLevel;
                     const cost = LEVEL_UP_COST(level, costReduction);
                     const canAfford = playerData.currency >= cost;
 
@@ -995,7 +1096,7 @@
                            React.createElement('p', {className: 'mt-2 text-lg'}, `Lv. ${level}`),
                            React.createElement('p', {className: 'mt-2 text-gray-300'}, item.description),
                            React.createElement('div', {className: 'my-4 w-full bg-gray-700 h-px'}),
-                           React.createElement('button', {onClick: () => handleLevelUp(type, id), disabled: isMaxLevel || !canAfford, className: 'ui-button'}, isMaxLevel ? 'MAX LEVEL' : `레벨업 (${cost} J)`)
+                           React.createElement('button', {onClick: () => handleLevelUp(type, id), disabled: !canAfford, className: 'ui-button'}, `레벨업 (${cost} J)`)
                         ), () => setTeamDetailView(null));
                  }
 
@@ -1004,7 +1105,8 @@
                         React.createElement('div', { className: 'grid grid-cols-2 gap-4' },
                             Object.values(items).map(item => {
                                 const isChar = type === 'character';
-                                const isUnlocked = isChar ? !!playerData.characters[item.id] : !!playerData.pets[item.id];
+                                const data = isChar ? playerData.characters[item.id] : playerData.pets[item.id];
+                                const isUnlocked = !!data;
                                 const isSelected = isChar ? selectedCharId === item.id : selectedPetId === item.id;
                                 
                                 return React.createElement('div', { key: item.id, className: `selection-card p-2 text-center flex flex-col justify-between ${isSelected ? 'selected' : ''}` },
@@ -1012,7 +1114,7 @@
                                         React.createElement('div', {className:'flex flex-col items-center'},
                                             React.createElement('div', {onClick: () => isChar ? setSelectedCharId(item.id) : setSelectedPetId(item.id), className: 'w-16 h-16 mx-auto'}, React.createElement(item.Icon, null)),
                                             React.createElement('p', { className: "font-bold mt-1 text-sm" }, item.name),
-                                            React.createElement('p', { className: "text-xs" }, `Lv. ${(isChar ? playerData.characters[item.id] : playerData.pets[item.id])?.level || 1}`),
+                                            React.createElement('p', { className: `text-xs` }, `Lv. ${data?.level || 1}`),
                                             React.createElement('button', { onClick: () => setTeamDetailView({type, id: item.id}), className: 'text-xs mt-2 bg-gray-600 px-2 py-1 rounded' }, '상세 정보')
                                         )
                                     :
@@ -1081,20 +1183,50 @@
                 )
             );
 
-            const renderTreasures = () => renderOverlay('보물', 
-                React.createElement('div', null,
-                    React.createElement('h3', {className: 'font-bold text-lg mb-2'}, '보유 보물 (최대 3개 장착)'),
-                    React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
-                        playerData.treasures.map(id => {
-                            const treasure = TREASURES[id]; const isEquipped = playerData.equippedTreasures.includes(id);
-                            return React.createElement('div', { key: id, onClick: () => handleToggleEquipTreasure(id), className: `p-3 text-center cursor-pointer rounded-lg border-2 ${isEquipped ? 'border-yellow-400 bg-yellow-500/20' : 'border-gray-600 bg-black/20'}` },
-                                React.createElement('p', { className: "font-bold" }, treasure.name),
-                                React.createElement('p', { className: "text-xs text-gray-400" }, treasure.description)
-                            );
-                        })
+            const renderTreasures = () => {
+                const getLeveledDescription = (treasure) => {
+                    const level = playerData.treasureLevels?.[treasure.id] || 0;
+                    if (level === 0) return treasure.description;
+                    const multiplier = 1 + level * 0.15;
+                    if (treasure.type === 'health_bonus') {
+                        return `최대 체력 +${Math.floor(treasure.value * multiplier)}`;
+                    }
+                    return `${treasure.description.split('+')[0]}+${(parseFloat(treasure.description.match(/[\d.]+/)[0]) * multiplier).toFixed(1)}%`;
+                };
+            
+                return renderOverlay('보물 강화', 
+                    React.createElement('div', {className: 'flex flex-col gap-4'},
+                        React.createElement('h3', {className: 'font-bold text-lg'}, '보유 보물 (최대 3개 장착)'),
+                        playerData.treasures.length === 0 
+                            ? React.createElement('p', {className: 'text-center text-gray-400 mt-4'}, '보유한 보물이 없습니다. 뽑기에서 획득하세요!')
+                            : React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+                            playerData.treasures.map(id => {
+                                const treasure = TREASURES[id];
+                                const isEquipped = playerData.equippedTreasures.includes(id);
+                                const level = playerData.treasureLevels?.[id] || 0;
+                                const cost = TREASURE_LEVEL_UP_COST(level, costReduction);
+            
+                                return React.createElement('div', { key: id, className: `p-3 rounded-lg border-2 ${isEquipped ? 'border-yellow-400 bg-yellow-500/20' : 'border-gray-600 bg-black/20'}` },
+                                    React.createElement('div', { className: 'flex justify-between items-start cursor-pointer', onClick: () => handleToggleEquipTreasure(id) },
+                                        React.createElement('div', null,
+                                            React.createElement('p', { className: "font-bold" }, `${treasure.name} (Lv.${level})`),
+                                            React.createElement('p', { className: "text-xs text-gray-400" }, getLeveledDescription(treasure))
+                                        ),
+                                        React.createElement('div', {className: 'w-6 h-6 rounded-full border-2 flex items-center justify-center ' + (isEquipped ? 'bg-yellow-400 border-white' : 'border-gray-500')}, isEquipped ? '✓' : '')
+                                    ),
+                                    React.createElement('div', {className: 'mt-3 flex justify-end items-center'},
+                                        React.createElement('button', {
+                                            onClick: () => handleTreasureLevelUp(id),
+                                            disabled: playerData.currency < cost,
+                                            className: 'ui-button text-xs py-1 px-3'
+                                        }, `레벨업 (${cost} J)`)
+                                    )
+                                );
+                            })
+                        )
                     )
-                )
-            );
+                );
+            };
             
             const renderGacha = () => renderOverlay('무한 상자 뽑기',
                 React.createElement('div', { className: 'flex flex-col items-center justify-center h-full text-center' },
@@ -1102,8 +1234,7 @@
                         React.createElement('div', { className: `fade-in flex flex-col items-center p-6 rounded-xl border-2 ${gachaResult.rarityColor}` },
                             React.createElement('p', { className: 'text-2xl font-bold mb-4' }, `획득! [${gachaResult.rarity.toUpperCase()}]`),
                             gachaResult.item?.Icon && React.createElement(gachaResult.item.Icon, { className: 'w-32 h-32' }),
-                            React.createElement('p', { className: 'text-xl font-bold mt-2' }, gachaResult.item?.name || `+${gachaResult.amount}`),
-                            React.createElement('p', { className: 'text-lg' }, gachaResult.type === 'currency' ? '젤리' : ''),
+                            React.createElement('p', { className: 'text-xl font-bold mt-2' }, gachaResult.item?.name || `+${gachaResult.amount.toLocaleString()} J` + (gachaResult.fragments ? ` & +${gachaResult.fragments} 🧠` : '')),
                             gachaResult.note && React.createElement('p', {className: 'text-sm text-gray-400'}, `(${gachaResult.note})`),
                             React.createElement('button', { onClick: () => setGachaState('idle'), className: 'ui-button mt-8' }, '확인')
                         )
@@ -1112,15 +1243,52 @@
                             React.createElement('p', { className: 'text-9xl', style: { animation: 'box-shake 0.4s ease-in-out 3' } }, '🎁'),
                             React.createElement('p', { className: 'text-xl font-bold mt-4 glowing-text' }, '개봉 중...')
                         )
-                    : // idle state
+                    :
                         React.createElement('div', { className: 'flex flex-col items-center' },
                             React.createElement('p', { className: 'text-9xl' }, '🎁'),
                             React.createElement('p', { className: 'text-2xl font-bold mt-4' }, '무한 상자'),
-                            React.createElement('p', { className: 'text-3xl font-bold text-yellow-300 my-2' }, `x ${playerData.gachaChests || 0}`),
-                            React.createElement('button', { onClick: handleDrawGacha, disabled: (playerData.gachaChests || 0) < 1, className: "ui-button" }, "1개 열기")
+                            React.createElement('button', { onClick: handleDrawGacha, disabled: playerData.currency < GACHA_COST, className: "ui-button mt-4" }, `1개 열기 (${GACHA_COST} J)`)
                         )
                 ), () => { setGachaState('idle'); setGachaResult(null); setCurrentView('main'); }
             );
+
+            const renderSettings = () => renderOverlay('설정', 
+                React.createElement('div', { className: 'flex flex-col gap-8' },
+                    React.createElement('div', null,
+                        React.createElement('h3', { className: 'text-lg font-bold mb-2' }, '닉네임 변경'),
+                        React.createElement('div', { className: 'flex gap-2' },
+                            React.createElement('input', { type: 'text', value: nicknameInput, onChange: (e) => setNicknameInput(e.target.value), maxLength: 12, className: 'flex-grow text-input' }),
+                            React.createElement('button', { onClick: handleSaveNickname, className: 'ui-button' }, '저장')
+                        )
+                    ),
+                    React.createElement('div', null,
+                        React.createElement('h3', { className: 'text-lg font-bold mb-2' }, '게임 데이터'),
+                         React.createElement('button', { onClick: () => { if(window.confirm('정말로 게임 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) { Cookies.remove('ipkoDashDataV4_player_level'); window.location.reload(); } }, className: 'ui-button danger' }, '데이터 초기화')
+                    )
+                )
+            );
+
+            const renderLevelUpModal = () => {
+                const bonuses = {
+                    health: levelUpInfo.level * 2,
+                    score: (levelUpInfo.level * 0.1).toFixed(1),
+                    currency: (levelUpInfo.level * 0.1).toFixed(1)
+                };
+                return React.createElement('div', { className: "main-overlay overlay-fade-in items-center justify-center p-4" },
+                    React.createElement('div', { className: "bg-slate-800/80 border-2 border-yellow-400 rounded-2xl p-8 text-center shadow-lg shadow-yellow-500/20 fade-in w-full max-w-md" },
+                        React.createElement('h2', { className: "text-5xl font-black text-yellow-300 glowing-text" }, "LEVEL UP!"),
+                        React.createElement('p', { className: "mt-4 text-3xl font-bold" }, `Lv. ${levelUpInfo.level}`),
+                        React.createElement('div', { className: 'my-4 w-full bg-gray-700 h-px' }),
+                        React.createElement('h3', { className: 'text-lg font-bold mb-2' }, '레벨 보너스'),
+                        React.createElement('ul', { className: 'text-left list-disc list-inside mx-auto w-fit' },
+                            React.createElement('li', null, `최대 체력: +${bonuses.health}`),
+                            React.createElement('li', null, `모든 점수 획득: +${bonuses.score}%`),
+                            React.createElement('li', null, `젤리 획득량: +${bonuses.currency}%`)
+                        ),
+                        React.createElement('button', { onClick: () => setLevelUpInfo(null), className: "mt-8 px-8 py-3 ui-button" }, "확인")
+                    )
+                );
+            };
 
             const renderGame = () => {
                 const player = playerStateRef.current; if (!player) return null;
@@ -1139,11 +1307,11 @@
                 return React.createElement('div', { className: "relative w-full h-full overflow-hidden" },
                     React.createElement('div', { style: { position: 'absolute', inset: 0, backgroundImage: 'url(background.png)', backgroundRepeat: 'repeat-x', backgroundSize: `auto ${WORLD_HEIGHT}px`, backgroundPosition: `${backgroundXRef.current}px 0` } }),
                     hitFlash && React.createElement('div', { className: "hit-flash-overlay" }),
-                    gameState.isLastDash && React.createElement('div', { className: "last-dash-overlay" }),
                     gameState.isFeverTime && React.createElement('div', { className: "fever-active-overlay" }),
                     React.createElement('div', { className: "absolute top-0 left-0", style: { width: WORLD_WIDTH, height: WORLD_HEIGHT } },
                         React.createElement('div', { className: `absolute ${playerClass}`, style: { left: player.pos.x, top: player.pos.y, width: player.size.x, height: player.size.y, transform: playerTransform, transition: 'width 0.1s, height 0.1s' } },
-                           React.createElement(CurrentCharacterIcon, null)
+                           React.createElement(CurrentCharacterIcon, null),
+                           player.shield > 0 && React.createElement('div', {className: 'shield-effect'})
                         ),
                         gameObjectsRef.current.map(obj => React.createElement('div', { key: obj.id, className: `absolute ${obj.isHighlighted ? 'obstacle-highlight' : ''}`, style: { left: obj.pos.x, top: obj.pos.y, width: obj.size.x, height: obj.size.y } }, React.createElement(obj.Icon, null))),
                         React.createElement('div', { className: "absolute bottom-0 left-0 w-full bg-cyan-800", style: { height: GROUND_HEIGHT, boxShadow: '0 -10px 20px rgba(0, 255, 255, 0.5)' } })
@@ -1178,9 +1346,9 @@
             const renderGameOver = () => React.createElement('div', { className: "main-overlay overlay-fade-in items-center justify-center p-4" },
                 React.createElement('div', { className: "bg-slate-800/80 border-2 border-cyan-400 rounded-2xl p-8 text-center shadow-lg shadow-cyan-500/20 fade-in w-full max-w-md" },
                     React.createElement('h2', { className: "text-5xl font-black text-red-500 glowing-text" }, "GAME OVER"),
-                    React.createElement('p', { className: "mt-4 text-2xl" }, "Final Score: ", React.createElement('span', { className: "text-cyan-300 font-bold" }, gameState.score)),
-                    React.createElement('p', { className: "mt-2 text-xl" }, "High Score: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, playerData.highScore)),
-                    React.createElement('p', { className: "mt-2 text-xl" }, "Earned Jellies: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, `+${Math.floor(inGameStatsRef.current.jellies * 5)}`)),
+                    React.createElement('p', { className: "mt-4 text-2xl" }, "Final Score: ", React.createElement('span', { className: "text-cyan-300 font-bold" }, gameState.score.toLocaleString())),
+                    React.createElement('p', { className: "mt-2 text-xl" }, "High Score: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, playerData.highScore.toLocaleString())),
+                    React.createElement('p', { className: "mt-2 text-xl" }, "Earned Jellies: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, `+${Math.floor(inGameStatsRef.current.jellies * 5).toLocaleString()}`)),
                     React.createElement('button', { onClick: () => { setGameState(prev => ({ ...prev, status: 'menu' })); setCurrentView('main'); }, className: "mt-8 px-8 py-3 ui-button" }, "메인 메뉴")
                 )
             );
@@ -1200,6 +1368,7 @@
                 case 'missions': return renderMissions();
                 case 'treasures': return renderTreasures();
                 case 'gacha': return renderGacha();
+                case 'settings': return renderSettings();
                 default: return null;
               }
             };
@@ -1210,7 +1379,8 @@
                     (gameState.status === 'playing' || gameState.status === 'gameOver') && renderGame(),
                     gameState.status === 'gameOver' && renderGameOver(),
                     gameState.isPaused && renderPauseMenu(),
-                    currentView !== 'main' && gameState.status === 'menu' && currentOverlay()
+                    currentView !== 'main' && gameState.status === 'menu' && currentOverlay(),
+                    levelUpInfo && renderLevelUpModal()
                 )
             );
         };
