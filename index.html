@@ -49,6 +49,13 @@
       .player-falling { transform: rotate(10deg); }
       @keyframes giant-stomp { 0%, 100% { transform: translateY(0) scale(1.5); } 50% { transform: translateY(-10px) scale(1.5); } }
       .player-giant { animation: giant-stomp 0.5s ease-in-out infinite; }
+      @keyframes player-invincible-blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+      .player-invincible {
+        animation: player-invincible-blink 0.2s linear infinite;
+      }
       
       /* Boss Animations */
       @keyframes boss-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
@@ -269,7 +276,7 @@
 
         const WORLD_WIDTH = 1280; const WORLD_HEIGHT = 720; const GROUND_HEIGHT = 60; const GRAVITY = 3000; const PLAYER_X_POSITION = 150;
         const PLAYER_JUMP_FORCE = 1100; const PLAYER_RUN_SIZE = { x: 50, y: 70 }; const PLAYER_SLIDE_SIZE = { x: 70, y: 40 };
-        const INITIAL_MAX_HEALTH = 100; const HEALTH_DECAY_RATE = 0; const OBSTACLE_DAMAGE = 25; 
+        const INITIAL_MAX_HEALTH = 100; const HEALTH_DECAY_RATE = 1; const OBSTACLE_DAMAGE = 25; 
         const INITIAL_GAME_SPEED = 350; const GAME_SPEED_INCREASE_RATE = 2; const MAX_GAME_SPEED = 750;
         const FEVER_GAUGE_MAX = 100; const FEVER_GAUGE_PER_JELLY = 5; const FEVER_DURATION = 8; const FEVER_OBSTACLE_SCORE = 100;
         const LAST_DASH_DURATION = 3;
@@ -534,7 +541,7 @@
                 if (activePartnerBonus?.type === 'max_health_bonus') maxHealth += activePartnerBonus.value;
                 let baseSpeed = INITIAL_GAME_SPEED * (1 + getTreasureValue('speed_boost'));
                 if (character.skill === 'high_speed') baseSpeed *= 1.2;
-                playerStateRef.current = { pos: { x: PLAYER_X_POSITION, y: WORLD_HEIGHT - GROUND_HEIGHT - PLAYER_RUN_SIZE.y }, size: PLAYER_RUN_SIZE, vy: 0, health: maxHealth, maxHealth: maxHealth, isJumping: false, jumpCount: 0, rhythmJumpCombo: 0, isSliding: false, isGiant: false, isBlasting: false, hasMagnet: false, activeEffects: {}, skillTimers: { teleport: 5, interest: 10 }, jellyBlastCounter: 0 };
+                playerStateRef.current = { pos: { x: PLAYER_X_POSITION, y: WORLD_HEIGHT - GROUND_HEIGHT - PLAYER_RUN_SIZE.y }, size: PLAYER_RUN_SIZE, vy: 0, health: maxHealth, maxHealth: maxHealth, isJumping: false, jumpCount: 0, rhythmJumpCombo: 0, isSliding: false, isGiant: false, isBlasting: false, hasMagnet: false, isShadowForm: false, activeEffects: {}, skillTimers: { teleport: 5, interest: 10 }, jellyBlastCounter: 0, invincibilityTimer: 0 };
                 if (character.skill === 'start_magnet') { playerStateRef.current.activeEffects['magnet'] = 5; }
                 let initialFever = 0;
                 if (pet.skill === 'fever_start_boost') { initialFever = FEVER_GAUGE_MAX * (pet.baseStat / 100); }
@@ -643,12 +650,16 @@
             const gameLoop = useCallback((deltaTime) => {
                 if (gameState.isPaused) return; const player = playerStateRef.current; if (!player) return; const character = CHARACTERS[selectedCharId]; const pet = PETS[selectedPetId]; const petLevel = playerData.pets[selectedPetId]?.level || 1; const isSynergy = CHARACTERS[selectedCharId].skill === 'pet_boost';
                 
+                if (player.invincibilityTimer > 0) {
+                    player.invincibilityTimer -= deltaTime;
+                }
+                
                 setGameState(prev => ({...prev, activeSkillCooldown: Math.max(0, prev.activeSkillCooldown - deltaTime) }));
 
                 // --- SPEED & MOVEMENT ---
                 let speedMultiplier = 1; let speedIncreaseRate = GAME_SPEED_INCREASE_RATE;
                 if (player.isBlasting) speedMultiplier = BLAST_JELLY_SPEED_MULTIPLIER;
-                else if (player.activeEffects['shadow_pact'] > 0) speedMultiplier = 1.2;
+                else if (player.isShadowForm) speedMultiplier = 1.2;
                 else if (character.skill === 'time_slow' && player.health < player.maxHealth * 0.5) { let slowDurBonus = activePartnerBonus?.type === 'slow_duration_bonus' ? activePartnerBonus.value : 0; speedMultiplier = 0.8 * (1 - slowDurBonus); }
                 if (pet.skill === 'pace_keeper') { speedIncreaseRate *= (1 - pet.baseStat); }
 
@@ -660,7 +671,7 @@
                 newDistance = gameState.distance + actualSpeed * deltaTime; 
                 inGameStatsRef.current.distance += actualSpeed * deltaTime / 100; newScore = gameState.score; newFeverGauge = gameState.feverGauge;
                 
-                Object.keys(player.activeEffects).forEach(effect => { player.activeEffects[effect] -= deltaTime; if (player.activeEffects[effect] <= 0) { delete player.activeEffects[effect]; if(effect === 'giant') player.isGiant = false; if(effect === 'blast') player.isBlasting = false; if(effect === 'magnet') player.hasMagnet = false; } });
+                Object.keys(player.activeEffects).forEach(effect => { player.activeEffects[effect] -= deltaTime; if (player.activeEffects[effect] <= 0) { delete player.activeEffects[effect]; if(effect === 'giant') player.isGiant = false; if(effect === 'blast') player.isBlasting = false; if(effect === 'magnet') player.hasMagnet = false; if(effect === 'shadow_pact') player.isShadowForm = false;} });
                 player.vy -= GRAVITY * deltaTime; player.pos.y -= player.vy * deltaTime;
                 if (player.pos.y > WORLD_HEIGHT - GROUND_HEIGHT - player.size.y) { player.pos.y = WORLD_HEIGHT - GROUND_HEIGHT - player.size.y; player.vy = 0; if (player.isJumping) { player.isJumping = false; player.jumpCount = 0; if (player.rhythmJumpCombo > 1) { newScore += player.rhythmJumpCombo * 100; } player.rhythmJumpCombo = 0; } }
 
@@ -708,9 +719,7 @@
                     const objRect = { x: obj.pos.x, y: obj.pos.y, width: obj.size.x, height: obj.size.y };
                     let shouldKeep = true;
                     if (playerRect.x < objRect.x + objRect.width && playerRect.x + playerRect.width > objRect.x && playerRect.y < objRect.y + objRect.height && playerRect.y + playerRect.height > objRect.y) {
-                        const isShadowPactActive = player.activeEffects['shadow_pact'] > 0;
-                        
-                        const handleJellyCollision = (isBig) => { inGameStatsRef.current.jellies++; player.jellyBlastCounter++; if (pet.skill === 'jelly_blast' && player.jellyBlastCounter >= petStat) { player.jellyBlastCounter = 0; createBlast(playerCenter, 150); } const petScoreBonus = (PETS[selectedPetId].skill === 'score_bonus') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; const treasureScoreBonus = 1 + getTreasureValue('score_bonus'); const jellyScoreBonus = activePartnerBonus?.type === 'jelly_score_bonus' ? 1 + activePartnerBonus.value : 1; const treasureJellyPercentBonus = 1 + getTreasureValue('base_jelly_score_percentage_bonus'); const enhancementBonus = 1 + (playerData.enhancements.jelly_score || 0) * ENHANCEMENTS.jelly_score.baseValue; let baseJellyScore = isBig ? 50 : 10; if (activePartnerBonus?.type === 'base_jelly_score_bonus') baseJellyScore += activePartnerBonus.value; const shadowPactMultiplier = isShadowPactActive ? 2 : 1; newScore += Math.floor((baseJellyScore + petScoreBonus) * treasureScoreBonus * jellyScoreBonus * treasureJellyPercentBonus * enhancementBonus * shadowPactMultiplier); if (!gameState.isFeverTime) { const petFeverBonus = (PETS[selectedPetId].skill === 'fever_boost') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; newFeverGauge = Math.min(FEVER_GAUGE_MAX, newFeverGauge + FEVER_GAUGE_PER_JELLY + petFeverBonus); } shouldKeep = false; };
+                        const handleJellyCollision = (isBig) => { inGameStatsRef.current.jellies++; player.jellyBlastCounter++; if (pet.skill === 'jelly_blast' && player.jellyBlastCounter >= petStat) { player.jellyBlastCounter = 0; createBlast(playerCenter, 150); } const petScoreBonus = (PETS[selectedPetId].skill === 'score_bonus') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; const treasureScoreBonus = 1 + getTreasureValue('score_bonus'); const jellyScoreBonus = activePartnerBonus?.type === 'jelly_score_bonus' ? 1 + activePartnerBonus.value : 1; const treasureJellyPercentBonus = 1 + getTreasureValue('base_jelly_score_percentage_bonus'); const enhancementBonus = 1 + (playerData.enhancements.jelly_score || 0) * ENHANCEMENTS.jelly_score.baseValue; let baseJellyScore = isBig ? 50 : 10; if (activePartnerBonus?.type === 'base_jelly_score_bonus') baseJellyScore += activePartnerBonus.value; const shadowPactMultiplier = player.isShadowForm ? 2 : 1; newScore += Math.floor((baseJellyScore + petScoreBonus) * treasureScoreBonus * jellyScoreBonus * treasureJellyPercentBonus * enhancementBonus * shadowPactMultiplier); if (!gameState.isFeverTime) { const petFeverBonus = (PETS[selectedPetId].skill === 'fever_boost') ? getPetStat(PETS[selectedPetId], petLevel, isSynergy) : 0; newFeverGauge = Math.min(FEVER_GAUGE_MAX, newFeverGauge + FEVER_GAUGE_PER_JELLY + petFeverBonus); } shouldKeep = false; };
                         const handleItemCollision = (itemType) => { inGameStatsRef.current.itemsUsed++; let effectMultiplier = (character.skill === 'item_double_effect') ? 2 : 1; let durationMultiplier = 1; if(PETS[selectedPetId].skill === 'powerup_boost') durationMultiplier += getPetStat(PETS[selectedPetId], petLevel, isSynergy) / 100; if(PETS[selectedPetId].skill === 'item_duration_boost') durationMultiplier += PETS[selectedPetId].baseStat; if(activePartnerBonus?.type === 'all_item_duration_bonus') durationMultiplier += activePartnerBonus.value; const finalDurationMultiplier = durationMultiplier * effectMultiplier; if (pet.skill === 'copy_item' && Math.random() < pet.baseStat) { gameObjectsRef.current.push({ ...obj, id: Math.random(), pos: {x: player.pos.x + 200, y: obj.pos.y} }); } switch(itemType) { case 'health_potion_item': player.health = Math.min(player.maxHealth, player.health + 30 * effectMultiplier); break; case 'giant_potion': player.isGiant = true; player.activeEffects['giant'] = GIANT_POTION_DURATION * (1 + getTreasureValue('giant_duration')) * finalDurationMultiplier; break; case 'blast_jelly': player.isBlasting = true; player.activeEffects['blast'] = BLAST_JELLY_DURATION * finalDurationMultiplier; break; case 'magnet_item': player.hasMagnet = true; let magnetBonus = activePartnerBonus?.type === 'magnet_duration_bonus' ? 1 + activePartnerBonus.value : 1; player.activeEffects['magnet'] = MAGNET_ITEM_DURATION * (1 + getTreasureValue('magnet_duration')) * finalDurationMultiplier * magnetBonus; break; } shouldKeep = false; };
                         
                         if (obj.type === 'rainbow_bear_jelly') { newScore += 15000; newFeverGauge = FEVER_GAUGE_MAX; shouldKeep = false; }
@@ -726,18 +735,25 @@
                             
                             if (isSlideObstacle && player.isSliding) {
                                 // Pass through harmlessly
-                            } else if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash || isShadowPactActive || isLiftInvincible) {
+                            } else if (gameState.isFeverTime || player.isGiant || player.isBlasting || gameState.isLastDash || player.isShadowForm || isLiftInvincible) {
                                 if(!obj.type.startsWith('boss')) { 
                                   inGameStatsRef.current.obstaclesDestroyed++; newScore += FEVER_OBSTACLE_SCORE; shouldKeep = false; 
                                 }
                             }
-                            else if (pet.skill === 'damage_negation' && Math.random() * 100 < getPetStat(pet, petLevel, isSynergy)) { shouldKeep = false; }
+                            else if (player.invincibilityTimer > 0) {
+                                // Invincible from a recent hit, just destroy the obstacle without damage
+                                shouldKeep = false;
+                            }
+                            else if (pet.skill === 'damage_negation' && Math.random() * 100 < getPetStat(pet, petLevel, isSynergy)) { 
+                                shouldKeep = false; 
+                            }
                             else { 
                                 let damage = OBSTACLE_DAMAGE;
                                 if (activePartnerBonus?.type === 'damage_reduction') {
                                     damage *= (1 - activePartnerBonus.value);
                                 }
                                 player.health -= damage; 
+                                player.invincibilityTimer = 1.5; // Set invincibility
                                 setHitFlash(true); 
                                 setTimeout(() => setHitFlash(false), 150);
                                 shouldKeep = false;
@@ -780,7 +796,7 @@
                     skillUsed = true; cooldown = pet.cooldown; createBlast({ x: player.pos.x, y: player.pos.y }, WORLD_WIDTH);
                 } else if (character.skill === 'shadow_pact') {
                     if (player.health > player.maxHealth * 0.21) { // Safety margin
-                        skillUsed = true; cooldown = character.cooldown; player.health -= player.maxHealth * 0.2; let duration = 5; if(activePartnerBonus?.type === 'shadow_pact_duration_bonus') duration += activePartnerBonus.value; player.activeEffects['shadow_pact'] = duration;
+                        skillUsed = true; cooldown = character.cooldown; player.health -= player.maxHealth * 0.2; let duration = 5; if(activePartnerBonus?.type === 'shadow_pact_duration_bonus') duration += activePartnerBonus.value; player.activeEffects['shadow_pact'] = duration; player.isShadowForm = true;
                     }
                 }
                 
@@ -1109,8 +1125,12 @@
             const renderGame = () => {
                 const player = playerStateRef.current; if (!player) return null;
                 const CurrentCharacterIcon = CHARACTERS[selectedCharId].Icon;
-                let playerClass = 'player-running'; if(player.isGiant) playerClass = 'player-giant'; else if (player.isJumping) playerClass = player.vy > 0 ? 'player-jumping' : 'player-falling';
-                if(player.activeEffects['shadow_pact'] > 0) playerClass += ' shadow-form-effect';
+                let playerClass = 'player-running'; 
+                if(player.isGiant) playerClass = 'player-giant'; 
+                else if (player.isJumping) playerClass = player.vy > 0 ? 'player-jumping' : 'player-falling';
+                if(player.isShadowForm) playerClass += ' shadow-form-effect';
+                if (player.invincibilityTimer > 0) playerClass += ' player-invincible';
+                
                 let playerTransform = ''; if(player.isBlasting) playerTransform = `translateX(${Math.random()*10 - 5}px)`;
                 const character = CHARACTERS[selectedCharId];
                 const pet = PETS[selectedPetId];
