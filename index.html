@@ -150,10 +150,10 @@
       .control-button {
         position: absolute;
         bottom: 5vh;
-        width: 20vh;
-        height: 20vh;
-        max-width: 120px;
-        max-height: 120px;
+        width: 25vh;
+        height: 25vh;
+        max-width: 150px;
+        max-height: 150px;
         background-color: rgba(0, 0, 0, 0.3);
         border: 2px solid rgba(255, 255, 255, 0.5);
         border-radius: 50%;
@@ -171,7 +171,7 @@
       }
        .skill-button {
          position: absolute;
-         bottom: 24vh;
+         bottom: 32vh;
          right: 4vw;
          width: 14vh;
          height: 14vh;
@@ -228,10 +228,10 @@
       }
        .jump-indicator-container {
         position: absolute;
-        bottom: 26vh;
+        bottom: 32vh;
         left: 4vw;
-        max-width: 120px;
-        width: 20vh;
+        max-width: 150px;
+        width: 25vh;
         display: flex;
         justify-content: center;
         gap: 12px;
@@ -375,7 +375,7 @@
 
         const LEVEL_UP_COST = (level, reduction = 0) => Math.floor((100 * Math.pow(1.25, level)) * (1 - reduction));
         const TREASURE_LEVEL_UP_COST = (level, reduction = 0) => Math.floor((200 * Math.pow(1.3, level)) * (1 - reduction));
-        const GACHA_COST = 5000;
+        const GACHA_COST = 500;
 
         const getCharacterStat = (char, level) => {
             return char.baseStat + (level - 1) * 15;
@@ -595,7 +595,7 @@
                     if(activePartnerBonus?.type === 'currency_bonus_final') petBonus += activePartnerBonus.value;
                     const enhancementBonus = 1 + (prev.enhancements.currency_gain || 0) * ENHANCEMENTS.currency_gain.baseValue;
                     const levelBonus = 1 + playerLevelBonuses.currency;
-                    const earnedCurrency = Math.floor(inGameStatsRef.current.jellies * 5 * petBonus * enhancementBonus * levelBonus);
+                    const earnedCurrency = Math.floor(inGameStatsRef.current.jellies * 25 * petBonus * enhancementBonus * levelBonus);
                     return { ...prev, highScore: newHighScore, currency: Math.floor(prev.currency + earnedCurrency) };
                 });
             }, [gameState.score, selectedCharId, selectedPetId, activePartnerBonus, updateMissions, playerLevelBonuses]);
@@ -1348,7 +1348,7 @@
                     React.createElement('h2', { className: "text-5xl font-black text-red-500 glowing-text" }, "GAME OVER"),
                     React.createElement('p', { className: "mt-4 text-2xl" }, "Final Score: ", React.createElement('span', { className: "text-cyan-300 font-bold" }, gameState.score.toLocaleString())),
                     React.createElement('p', { className: "mt-2 text-xl" }, "High Score: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, playerData.highScore.toLocaleString())),
-                    React.createElement('p', { className: "mt-2 text-xl" }, "Earned Jellies: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, `+${Math.floor(inGameStatsRef.current.jellies * 5).toLocaleString()}`)),
+                    React.createElement('p', { className: "mt-2 text-xl" }, "Earned Jellies: ", React.createElement('span', { className: "text-yellow-300 font-bold" }, `+${Math.floor(inGameStatsRef.current.jellies * 25).toLocaleString()}`)),
                     React.createElement('button', { onClick: () => { setGameState(prev => ({ ...prev, status: 'menu' })); setCurrentView('main'); }, className: "mt-8 px-8 py-3 ui-button" }, "메인 메뉴")
                 )
             );
